@@ -1,0 +1,7 @@
+require_relative "json2bits/version"
+require_relative "json2bits/errors"
+require_relative "json2bits/bit_stream"
+require_relative "json2bits/codecs"
+require_relative "json2bits/definition"
+require_relative "json2bits/configuration"
+require_relative "json2bits/serializer"
