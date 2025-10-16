@@ -1,0 +1,15 @@
+device_index INTEGER(4) // either 4, 8, 12 or 16 bits depending on the configuration 
+mac_address HEXA(6)
+alarm SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
+temperature FLOAT(4;5.0;200.0)
+battery_level FLOAT(4;0.0;100.0) 
+child_index ALIAS(device_index)
+child_mac ALIAS(mac_address)
+device_add_child SEQUENCE(device_index;child_index;child_mac)
+device_death ALIAS(device_index)
+device_temperature SEQUENCE(device_index;temperature)
+device_alarm SEQUENCE(device_index;alarm)
+device_battery_level SEQUENCE(device_index;battery_level)
+server_fragment XOR(4;0x01:device_add_child;0x02:device_death;0x03:device_alarm;0x04:device_temperature;0x05:device_battery_level) // 4 is the number of bit to encode the list key
+server_message LIST_XOR(server_fragment) 
+

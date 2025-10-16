@@ -1,0 +1,29 @@
+nb_bit_key_binary=6
+    0x01 accelerometer_kpi SYMBOL(no_alarm;motion;free_fall;unknown)
+    0x02 battery_level FLOAT(8;1.5;4.0) // a float coded with 8 bits, value range from 1.5 to 4.0
+    0x03 resync_kpi INTEGER(4)
+    0x04 reboot_kpi INTEGER(4) alarm=12
+    0x05 stability_kpi SEQUENCE(resync_kpi;reboot_kpi)
+    0x06 module_code HEXA(2)
+    0x07 modules ARRAY(3;module_code)
+    0x08 device_mac HEXA(6) // a mac adress coded with 6 bytes
+    0x09 adding_child ALIAS(device_mac) signal
+    0x0A alert VOID signal
+    0x0B log_category SYMBOL(info;warn;error;debug)
+    0x0C log_level SYMBOL(low;medium;high)
+    0x0D logs ARRAY(2;log_category;log_level)
+    0x0E index_short INTEGER(4)
+    0x0F index_long INTEGER(9)
+    0x10 device_index XOR(index_short;index_long)
+    0x11 constant STATIC(true)
+    0x12 raw_payload BYTES(4)
+    0x13 flag BOOLEAN
+    0x14 wildcard XOR(*)
+    0x1C sequence_with_message SEQUENCE(resync_kpi;message)
+    0x1D array_with_message ARRAY(3;message)
+    0x1E xor_with_message XOR(message;module_code)
+    0x1F index_ultra_short INTEGER(3)
+
+
+
+

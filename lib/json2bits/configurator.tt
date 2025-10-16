@@ -1,0 +1,216 @@
+# Define a binary serializer using Treetop parser
+# https://github.com/nathansobo/treetop
+# https://www.rubydoc.info/gems/treetop/1.6.11
+# https://cjheath.github.io/treetop/
+# http://thingsaaronmade.com/blog/a-quick-intro-to-writing-a-parser-using-treetop.html
+# https://morioh.com/p/c601072f2066
+
+# see example in fixtures/files/binary_serializer.tt
+
+# External functions
+# Device.precondition_vocabulary(attr)
+
+# to compile the grammar
+# tt lib/json2bits/configurator.tt -f
+
+#require_relative "codecs"
+
+grammar Configurator
+
+  rule configuration
+    lines:(line space? eol+)+ {
+        def value
+            lines.elements.inject(Codecs.new) do |codecs, elt| 
+              codec = elt.line.value
+              codecs.add_codec(codec)
+              codecs
+            end
+        end
+    }
+  end  
+
+  rule line
+    space? key space codec c:comment* {
+        def value
+          parameters = { 
+                key: key.value,
+                comment: (c.elements[0] ? c.elements[0].value : "") 
+            }
+          parameters.merge!(codec.value)
+          codec_type = parameters.delete(:codec_type)
+          Object.const_get(codec_type).new(**parameters)
+        end
+    }
+  end
+
+  rule comment
+    space* "//" space* (!eol .)* {
+      def value
+        text_value
+      end
+    }
+  
+  end
+
+  rule codec
+    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor
+  end
+
+  rule codec_boolean 
+    "BOOLEAN" {
+        def value
+          {codec_type: "CodecBoolean"} 
+        end
+    }
+  end
+
+  rule codec_integer 
+    "INTEGER" "(" nb_bit:integer ")" {
+        def value
+          {codec_type: "CodecInteger", nb_bit: nb_bit.value} 
+        end
+    }
+  end
+
+  rule codec_float 
+    "FLOAT" "(" nb_bit:integer spl min:float spl max:float ")" {
+        def value
+          {codec_type: "CodecFloat", nb_bit: nb_bit.value, min_float: min.value, max_float: max.value} 
+        end
+    }
+  end
+
+  rule codec_hexa 
+    "HEXA" "(" nb_bytes:integer ")" {
+        def value
+          {codec_type: "CodecHexa", nb_bytes: nb_bytes.value } 
+        end
+    }
+  end
+
+
+  rule codec_symbol 
+    "SYMBOL" "(" nb_bit:integer ";" keys ")" {
+        def value
+          {codec_type: "CodecSymbol", nb_bit: nb_bit.value, symbols: keys.value } 
+        end
+    }
+  end
+
+  rule codec_void 
+    "VOID" {
+        def value
+          {codec_type: "CodecVoid" } 
+        end
+    }
+  end
+
+  rule codec_sequence
+    "SEQUENCE" "(" keys ")" {
+        def value
+          {codec_type: "CodecSequence", keys: keys.value } 
+        end
+    }
+  end
+
+  rule codec_alias
+    "ALIAS" "(" key ")" {
+        def value
+          {codec_type: "CodecAlias", target_key: key.value } 
+        end
+    }
+  end
+
+  rule codec_array
+    "ARRAY" "(" nb_bit:integer spl item_key:key ")" {
+        def value
+          {codec_type: "CodecArray", nb_bit: nb_bit.value, item_key: item_key.value }
+        end
+    }
+  end
+
+  rule codec_list_xor
+    "LIST_XOR(" key ")" {
+      def value
+        {
+        codec_type: "CodecListXor", 
+        key_xor: key.value, 
+        }
+      end
+    }
+  end
+
+  rule codec_xor
+    "XOR(" integer binary_keys:(";" binary_key)* ")" {
+      def value
+        {
+          codec_type: "CodecXor", 
+          nb_bit_binary_key: integer.value,
+          binary_keys: binary_keys.elements.inject({}) { |h, elt| h.merge!(elt.binary_key.value) }
+        }
+      end
+    }
+  end
+  
+  rule key
+    [a-zA-Z0-9_]+ { 
+        def value 
+            text_value 
+        end 
+    }
+  end
+
+  rule keys 
+    f:key s:(spl key)* {
+        def value 
+            [f.value].concat(s.elements.map { |elt| elt.key.value })
+        end
+    }
+  end
+
+  rule binary_key
+     hexa ":" key { 
+        def value 
+            { key.value => hexa.value.to_i(16) }
+        end 
+    }
+  end
+
+  rule integer
+    [0-9]+ {
+        def value 
+            text_value.to_i 
+        end 
+    }
+  end
+
+  rule float
+    "-"? integer "." integer {
+        def value 
+            text_value.to_f 
+        end 
+    }
+  end
+
+  rule hexa
+     "0x" [0-9a-fA-F]+ { 
+        def value 
+            text_value 
+        end 
+    }
+  end
+    
+  # list separator  
+  rule spl
+    space? ";" space?
+  end
+
+  rule space
+    ' '+
+  end
+  
+  rule eol
+    "\r\n" / "\n" / "\r"
+  end
+
+end

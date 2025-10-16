@@ -1,0 +1,28 @@
+PATH
+  remote: .
+  specs:
+    json2bits (0.1.0)
+      treetop (>= 1.6.11)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.26.0)
+    ostruct (0.6.3)
+    polyglot (0.3.5)
+    rake (12.3.3)
+    treetop (1.6.18)
+      polyglot (~> 0.3)
+
+PLATFORMS
+  arm64-darwin-24
+  ruby
+
+DEPENDENCIES
+  json2bits!
+  minitest (~> 5.14, >= 5.14.4)
+  ostruct (~> 0.3)
+  rake (~> 12.3, >= 12.3.3)
+
+BUNDLED WITH
+   2.7.2
