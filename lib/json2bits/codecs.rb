@@ -22,11 +22,10 @@ class Codec
         bit_stream
     end
 
-    def serialize_to_bytes(value)
+    def serialize_to_bytes(value, compute_nb_bit: false)
       writer = BitStream.new
       serialize(writer, value)
-      writer.bytes
-      #serialize(BitStream.new, value).bytes
+      compute_nb_bit ? [writer.bytes, writer.nb_bit] : writer.bytes
     end
 
     def deserialize(bit_stream)
@@ -332,7 +331,7 @@ class CodecXor < CodecComposite
         item_key = value.keys.first
         item_value = value[item_key]
         item_bkey = @key_2_bkey[item_key]
-        raise "Unknown option key #{item_key} for XOR serialization" if item_bkey.nil?
+        raise "Unknown option key #{item_key.inspect} for XOR serialization" if item_bkey.nil?
         bit_stream.write_bits(item_bkey, @nb_bit_binary_key)
         codec = @codecs.key_2_codec(item_key)
         codec.serialize(bit_stream, item_value, is_last: is_last)
@@ -414,6 +413,14 @@ class Codecs
 
     def initialize
         @dictionnary = {}
+    end
+
+    def serialize_to_bytes(key, value, compute_nb_bit: false)
+        key_2_codec(key).serialize_to_bytes(value, compute_nb_bit: compute_nb_bit)
+    end
+
+    def deserialize_from_bytes(key, bytes)
+        key_2_codec(key).deserialize_from_bytes(bytes)
     end
 
     def add_codec(codec)

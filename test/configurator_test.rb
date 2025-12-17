@@ -92,7 +92,24 @@ class ConfiguratorTest < Minitest::Test
     assert codecs.is_a?(Codecs)
     assert_equal 14, codecs.dictionnary.size
     assert_equal ["device_index", "mac_address", "alarm", "temperature", "battery_level", "child_index", "child_mac", "device_add_child", "device_death", "device_temperature", "device_alarm", "device_battery_level", "server_fragment", "server_message"], codecs.dictionnary.keys
+    codec_server_fragment = codecs.key_2_codec("server_fragment")
 
+    codec_server_message = codecs.key_2_codec("server_message")
+    payload = [
+      { "device_alarm" => { "device_index" => 3, "alarm" => "too_many_resync" } },
+      { "device_temperature" => { "device_index" => 1, "temperature" => 200.0 }  },
+      { "device_add_child" => { "device_index" => 2, "child_index" => 8, "child_mac" => "a1b2c3d4e5f6" } }
+    ]
+    bytes = codec_server_message.serialize_to_bytes(payload)
+    assert_equal [0b00110011, 0b00010100, 0b00011111, 0b00010010, 0b10001010, 0b00011011, 0b00101100, 0b00111101, 0b01001110, 0b01011111, 0b01100000], bytes
+    decoded = codec_server_message.deserialize_from_bytes(bytes)
+    puts "decoded payload:"
+    [
+      {"device_alarm" => {"device_index" => 3, "alarm" => "too_many_resync"}}, 
+      {"device_temperature" => {"device_index" => 1, "temperature" => 18.0}}, 
+      {"device_add_child" => {"device_index" => 2, "child_index" => 8, "child_mac" => "a1b2c3d4e5f6"}}
+    ]
+    assert_equal payload, decoded
   end
 
   def test_it_should_parse_readme_example

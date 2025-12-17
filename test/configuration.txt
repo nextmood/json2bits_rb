@@ -1,7 +1,7 @@
 device_index INTEGER(4) // either 4, 8, 12 or 16 bits depending on the configuration 
 mac_address HEXA(6)
 alarm SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
-temperature FLOAT(4;5.0;200.0)
+temperature FLOAT(4;0.0;200.0)
 battery_level FLOAT(4;0.0;100.0) 
 child_index ALIAS(device_index)
 child_mac ALIAS(mac_address)
