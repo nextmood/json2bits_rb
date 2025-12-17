@@ -25,7 +25,7 @@ class Codec
     def serialize_to_bytes(value, compute_nb_bit: false)
       writer = BitStream.new
       serialize(writer, value)
-      compute_nb_bit ? [writer.bytes, writer.nb_bit] : writer.bytes
+      compute_nb_bit ? [writer.bytes, writer.nb_bits_written] : writer.bytes
     end
 
     def deserialize(bit_stream)
