@@ -80,6 +80,34 @@ raise "Error while encoding/decoding" unless decoded == payload # => true
 
 `LIST` codecs automatically prepend the binary key (here `0x01`) for each entry and append a terminator when they are not the last element of a parent sequence.
 
+### LIST_XOR with prefix
+
+When each list item needs an associated identifier (e.g., a sensor ID or device index), use the two-argument form:
+
+```ruby
+config = <<~CFG
+  sensor_id INTEGER(8)
+  temperature INTEGER(8)
+  humidity INTEGER(8)
+  reading XOR(2;0x01:temperature;0x02:humidity)
+  readings LIST_XOR(sensor_id;reading)
+CFG
+
+parser = ConfiguratorParser.new
+codecs = parser.parse(config).value
+readings = codecs.key_2_codec("readings")
+
+payload = [
+  { "sensor_id" => 1, "temperature" => 25 },
+  { "sensor_id" => 2, "humidity" => 60 },
+  { "sensor_id" => 1, "humidity" => 55 }
+]
+
+bytes = readings.serialize_to_bytes(payload)
+decoded = readings.deserialize_from_bytes(bytes)
+# => [{"sensor_id" => 1, "temperature" => 25}, {"sensor_id" => 2, "humidity" => 60}, {"sensor_id" => 1, "humidity" => 55}]
+```
+
 ## Configuration format
 
 Each line of the configuration describes one codec:
@@ -108,6 +136,7 @@ Each line of the configuration describes one codec:
 | `ARRAY` | `ARRAY(nb_bit;item_key)` | Writes the array length on `nb_bit` bits, then encodes each item with `item_key`. |
 | `XOR` | `XOR(nb_bit_binary_key;0xNN:key1;0xNN:key2;...)` | One-of choice between the given codecs, selected on `nb_bit_binary_key` bits. |
 | `LIST_XOR` | `LIST_XOR(key_xor)` | Heterogeneous list that reuses a named `XOR` definition and appends a `0x00` terminator when not last. |
+| `LIST_XOR` (with prefix) | `LIST_XOR(prefix_key;key_xor)` | Like `LIST_XOR` but prepends each item with a prefix value (e.g., a device ID). The prefix codec must be fixed-length. |
 
 ### Working with codecs directly
 

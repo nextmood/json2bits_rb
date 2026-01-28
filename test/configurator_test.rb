@@ -67,7 +67,6 @@ class ConfiguratorTest < Minitest::Test
 
   end
 
-
   def test_it_should_parse_a_composite_xor
     assert parsed = @parser.parse(
       "device_index_short INTEGER(7)
@@ -84,32 +83,81 @@ class ConfiguratorTest < Minitest::Test
 
   end
 
+  def test_it_should_parse_a_list_xor
+    assert parsed = @parser.parse(
+      "device_index INTEGER(4)
+       temperature FLOAT(4;0.0;100.0)
+       measurement XOR(2;0x01:device_index;0x02:temperature)
+       measurements LIST_XOR(measurement)\n")
+
+    codecs = parsed.value
+    codec_list_xor = codecs.key_2_codec("measurements")
+    assert codec_list_xor.is_a?(CodecListXor)
+
+    payload = [
+      { "device_index" => 5 },
+      { "temperature" => 100.0 },
+      { "device_index" => 10 }
+    ]
+
+    bytes = codec_list_xor.serialize_to_bytes(payload)
+    decoded = codec_list_xor.deserialize_from_bytes(bytes)
+    assert_equal payload, decoded
+  end
+
+  def test_it_should_parse_a_list_xor_with_prefix
+    assert parsed = @parser.parse(
+      "sensor_id INTEGER(4)
+       device_index INTEGER(4)
+       temperature FLOAT(4;0.0;100.0)
+       measurement XOR(2;0x01:device_index;0x02:temperature)
+       measurements LIST_XOR(sensor_id;measurement)\n")
+
+    codecs = parsed.value
+    codec_list_xor = codecs.key_2_codec("measurements")
+    assert codec_list_xor.is_a?(CodecListXorWithPrefix)
+
+    payload = [
+      { "sensor_id" => 1, "device_index" => 5 },
+      { "sensor_id" => 2, "temperature" => 100.0 },
+      { "sensor_id" => 3, "device_index" => 10 }
+    ]
+
+    bytes = codec_list_xor.serialize_to_bytes(payload)
+    decoded = codec_list_xor.deserialize_from_bytes(bytes)
+    assert_equal payload, decoded
+  end
 
   def test_it_should_parse_and_compile_the_configuration_file
     configuration = File.read("test/configuration.txt")
     assert parsed = @parser.parse(configuration)
     codecs = parsed.value
     assert codecs.is_a?(Codecs)
-    assert_equal 14, codecs.dictionnary.size
-    assert_equal ["device_index", "mac_address", "alarm", "temperature", "battery_level", "child_index", "child_mac", "device_add_child", "device_death", "device_temperature", "device_alarm", "device_battery_level", "server_fragment", "server_message"], codecs.dictionnary.keys
-    codec_server_fragment = codecs.key_2_codec("server_fragment")
+    assert_equal 7, codecs.dictionnary.size
+    assert_equal ["network_id", "add_child", "lost_child", "alarm", "temperature", "server_fragment", "server_signals"], codecs.dictionnary.keys
 
-    codec_server_message = codecs.key_2_codec("server_message")
-    payload = [
-      { "device_alarm" => { "device_index" => 3, "alarm" => "too_many_resync" } },
-      { "device_temperature" => { "device_index" => 1, "temperature" => 200.0 }  },
-      { "device_add_child" => { "device_index" => 2, "child_index" => 8, "child_mac" => "a1b2c3d4e5f6" } }
-    ]
-    bytes = codec_server_message.serialize_to_bytes(payload)
-    assert_equal [0b00110011, 0b00010100, 0b00011111, 0b00010010, 0b10001010, 0b00011011, 0b00101100, 0b00111101, 0b01001110, 0b01011111, 0b01100000], bytes
-    decoded = codec_server_message.deserialize_from_bytes(bytes)
-    puts "decoded payload:"
-    [
-      {"device_alarm" => {"device_index" => 3, "alarm" => "too_many_resync"}}, 
-      {"device_temperature" => {"device_index" => 1, "temperature" => 18.0}}, 
-      {"device_add_child" => {"device_index" => 2, "child_index" => 8, "child_mac" => "a1b2c3d4e5f6"}}
-    ]
-    assert_equal payload, decoded
+    codec_server_signals = codecs.key_2_codec("server_signals")
+    
+    payload_as_bytes = [0x00, 0x01, 0x01, 0x00, 0x05]
+    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
+    assert_equal([{"network_id" => 1, "add_child" => 5}], decoded)
+
+    payload_as_bytes = [0x00, 0x01, 0x02, 0x00, 0x05]
+    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
+    assert_equal([{"network_id" => 1, "lost_child" => 5}], decoded)
+
+    payload_as_bytes = [0x00, 0x01, 0x03, 0x00]
+    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
+    assert_equal([{"network_id" => 1, "alarm" => "too_many_reboot"}], decoded)
+
+    payload_as_bytes = [0x00, 0x01, 0x04, 0xFF]
+    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
+    assert_equal([{"network_id" => 1, "temperature" => 200.0}], decoded)
+
+    payload_as_bytes = [0x00, 0x01, 0x01, 0x00, 0x05, 0x00, 0x01, 0x02, 0x00, 0x05, 0x00, 0x01, 0x03, 0x00, 0x00, 0x01, 0x04, 0xFF]
+    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
+    assert_equal([{"network_id" => 1, "add_child" => 5},{"network_id" => 1, "lost_child" => 5},{"network_id" => 1, "alarm" => "too_many_reboot"},{"network_id" => 1, "temperature" => 200.0}], decoded)
+
   end
 
   def test_it_should_parse_readme_example

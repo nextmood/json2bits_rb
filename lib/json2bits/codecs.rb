@@ -356,7 +356,7 @@ class CodecXor < CodecComposite
 
 end
 
-# concept of list
+# List
 class CodecListXor < CodecComposite
 
     def initialize(key:, key_xor:, comment: nil)
@@ -367,25 +367,29 @@ class CodecListXor < CodecComposite
     def post_initialize(codecs)
         super(codecs)
         @xor_codec = @codecs.key_2_codec(@key_xor)
-        @nb_bit_binary_key = @xor_codec.nb_bit_binary_key
         raise "XOR codec #{@key_xor} not found or not CodecXor for list #{@key}" if @xor_codec.nil? || !@xor_codec.is_a?(CodecXor)
+        @nb_bit_binary_key = @xor_codec.nb_bit_binary_key
         @xor_codec.safe_for_list?
+        @nb_bit_marker = @nb_bit_binary_key
     end
 
     # value is a list of value of xor
     def serialize(bit_stream, keys_values, is_last: true)
-        raise "Expecting an array of hashes value matching the xor definition" unless keys_values.is_a?(Array) && keys_values.all? { |item| item.is_a?(Hash) && item.size == 1 }
-        @last_item_key = keys_values.last.to_a.first.first
+        expected_size = @prefix_codec ? 2 : 1
+        raise "Expecting an array of hashes value matching the xor definition" unless keys_values.is_a?(Array) && keys_values.all? { |item| item.is_a?(Hash) && item.size == expected_size }
+        @last_key_value = keys_values.last
         keys_values.each do |key_value|
-            @xor_codec.serialize(bit_stream, key_value, is_last: key_value.first.first == @last_item_key && is_last)
+            @prefix_codec.serialize(bit_stream, key_value[@prefix_codec.key], is_last: false) if @prefix_codec
+            xor_value = @prefix_codec ? key_value.reject { |k, _| k == @prefix_codec.key } : key_value
+            @xor_codec.serialize(bit_stream, xor_value, is_last: key_value == @last_key_value && is_last)
         end
-        bit_stream.write_bits(0x0, @nb_bit_binary_key) unless is_last
+        bit_stream.write_bits(0x0, @nb_bit_marker) unless is_last
         super(bit_stream, keys_values, is_last: is_last)
     end
 
     def deserialize(bit_stream)
         result = []
-        while (bkey = read_bkey(bit_stream)) != 0x0
+        while (bkey = read_bkey(bit_stream, nb_bit: @nb_bit_binary_key)) != 0x0
             item_codec = @xor_codec.bkey_2_codec[bkey]
             raise "Unknown binary key #{bkey} during list item deserialization" if item_codec.nil?
             item_value = item_codec.deserialize(bit_stream)
@@ -394,11 +398,11 @@ class CodecListXor < CodecComposite
         result
     end
 
-    private
+    protected
 
-    def read_bkey(bit_stream)
+    def read_bkey(bit_stream, nb_bit:)
         begin
-            bit_stream.read_bits(@nb_bit_binary_key)
+            bit_stream.read_bits(nb_bit)
         rescue Json2Bits::NoMoreBitsError
             0x0
         end
@@ -406,6 +410,41 @@ class CodecListXor < CodecComposite
     
 end
 
+# List with prefix
+class CodecListXorWithPrefix < CodecListXor
+
+    def initialize(key:, key_prefix:, key_xor:, comment: nil)
+        super(key:, key_xor:, comment: nil)
+        @key_prefix = key_prefix
+    end
+
+    def post_initialize(codecs)
+        super(codecs)
+        @prefix_codec = @codecs.key_2_codec(@key_prefix)
+        raise "Prefix codec #{@key_prefix} not found or not CodexFixSize for list #{@key}" if @prefix_codec.nil? || !@prefix_codec.is_a?(CodecFixLength)
+        @nb_bit_prefix = @prefix_codec.instance_variable_get(:@nb_bit)
+        @nb_bit_marker = @nb_bit_prefix
+    end
+
+    # value is a list of value of xor
+    def serialize(bit_stream, keys_values, is_last: true)
+        raise "Expecting an array of hashes with a prefix key" unless keys_values.is_a?(Array) && keys_values.all? { |item| item.is_a?(Hash) && item[@prefix_codec.key] }
+        super(bit_stream, keys_values, is_last: is_last)
+    end
+
+    def deserialize(bit_stream)
+        result = []
+        while (prefix_value = read_bkey(bit_stream, nb_bit: @nb_bit_prefix)) != 0x0
+            bkey = read_bkey(bit_stream, nb_bit: @nb_bit_binary_key)
+            item_codec = @xor_codec.bkey_2_codec[bkey]
+            raise "Unknown binary key #{bkey} during list item deserialization" if item_codec.nil?
+            item_value = item_codec.deserialize(bit_stream)
+            result << { @prefix_codec.key => prefix_value, item_codec.key => item_value }
+        end
+        result
+    end
+    
+end
 
 class Codecs
 

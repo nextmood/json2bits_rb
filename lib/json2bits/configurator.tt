@@ -53,7 +53,7 @@ grammar Configurator
   end
 
   rule codec
-    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor
+    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor_with_prefix / codec_list_xor
   end
 
   rule codec_boolean 
@@ -130,11 +130,23 @@ grammar Configurator
   end
 
   rule codec_list_xor
-    "LIST_XOR(" key ")" {
+    "LIST_XOR(" key_xor:key ")" {
       def value
         {
         codec_type: "CodecListXor", 
-        key_xor: key.value, 
+        key_xor: key_xor.value, 
+        }
+      end
+    }
+  end
+
+  rule codec_list_xor_with_prefix
+    "LIST_XOR(" key_prefix:key ";" key_xor:key ")" {
+      def value
+        {
+        codec_type: "CodecListXorWithPrefix", 
+        key_xor: key_xor.value, 
+        key_prefix: key_prefix.value
         }
       end
     }

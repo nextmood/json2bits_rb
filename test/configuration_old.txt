@@ -1,29 +1,34 @@
-nb_bit_key_binary=6
-    0x01 accelerometer_kpi SYMBOL(no_alarm;motion;free_fall;unknown)
-    0x02 battery_level FLOAT(8;1.5;4.0) // a float coded with 8 bits, value range from 1.5 to 4.0
-    0x03 resync_kpi INTEGER(4)
-    0x04 reboot_kpi INTEGER(4) alarm=12
-    0x05 stability_kpi SEQUENCE(resync_kpi;reboot_kpi)
-    0x06 module_code HEXA(2)
-    0x07 modules ARRAY(3;module_code)
-    0x08 device_mac HEXA(6) // a mac adress coded with 6 bytes
-    0x09 adding_child ALIAS(device_mac) signal
-    0x0A alert VOID signal
-    0x0B log_category SYMBOL(info;warn;error;debug)
-    0x0C log_level SYMBOL(low;medium;high)
-    0x0D logs ARRAY(2;log_category;log_level)
-    0x0E index_short INTEGER(4)
-    0x0F index_long INTEGER(9)
-    0x10 device_index XOR(index_short;index_long)
-    0x11 constant STATIC(true)
-    0x12 raw_payload BYTES(4)
-    0x13 flag BOOLEAN
-    0x14 wildcard XOR(*)
-    0x1C sequence_with_message SEQUENCE(resync_kpi;message)
-    0x1D array_with_message ARRAY(3;message)
-    0x1E xor_with_message XOR(message;module_code)
-    0x1F index_ultra_short INTEGER(3)
+network_id INTEGER(8) // either 4, 8, 12 or 16 bits depending on the configuration 
+mac_address HEXA(6)
+alarm SYMBOL(8;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
+child_network_id ALIAS(network_id)
+device_add_child SEQUENCE(network_id;child_network_id)
+device_death ALIAS(network_id)
+device_alarm SEQUENCE(network_id;alarm)
+server_fragment XOR(8;0x01:device_add_child;0x02:device_death;0x03:device_alarm) // 8 is the number of bit to encode the list key
+server_message LIST_XOR(server_fragment) 
 
 
+network_id INTEGER(16)
+add_child ALIAS(network_id)
+lost_child ALIAS(network_id)
+alarm SYMBOL(8;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
+server_fragment XOR(8;0x01:add_child;0x02:lost_child;0x03:alarm) // 8 is the number of bit to encode the list key
+server_signal SEQUENCE(network_id;server_fragment)
 
+
+device_index INTEGER(4) // either 4, 8, 12 or 16 bits depending on the configuration 
+mac_address HEXA(6)
+alarm SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
+temperature FLOAT(4;0.0;200.0)
+battery_level FLOAT(4;0.0;100.0) 
+child_index ALIAS(device_index)
+child_mac ALIAS(mac_address)
+device_add_child SEQUENCE(device_index;child_index;child_mac)
+device_death ALIAS(device_index)
+device_temperature SEQUENCE(device_index;temperature)
+device_alarm SEQUENCE(device_index;alarm)
+device_battery_level SEQUENCE(device_index;battery_level)
+server_fragment XOR(4;0x01:device_add_child;0x02:device_death;0x03:device_alarm;0x04:device_temperature;0x05:device_battery_level) // 4 is the number of bit to encode the list key
+server_message LIST_XOR(server_fragment) 
 

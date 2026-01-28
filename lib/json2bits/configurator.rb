@@ -388,13 +388,19 @@ module Configurator
                         r10 = SyntaxNode.new(input, (index-1)...index) if r10 == true
                         r0 = r10
                       else
-                        r11 = _nt_codec_list_xor
+                        r11 = _nt_codec_list_xor_with_prefix
                         if r11
                           r11 = SyntaxNode.new(input, (index-1)...index) if r11 == true
                           r0 = r11
                         else
-                          @index = i0
-                          r0 = nil
+                          r12 = _nt_codec_list_xor
+                          if r12
+                            r12 = SyntaxNode.new(input, (index-1)...index) if r12 == true
+                            r0 = r12
+                          else
+                            @index = i0
+                            r0 = nil
+                          end
                         end
                       end
                     end
@@ -1038,7 +1044,7 @@ module Configurator
   end
 
   module CodecListXor0
-    def key
+    def key_xor
       elements[1]
     end
 
@@ -1048,7 +1054,7 @@ module Configurator
     def value
       {
       codec_type: "CodecListXor", 
-      key_xor: key.value, 
+      key_xor: key_xor.value, 
       }
     end
   end
@@ -1097,6 +1103,89 @@ module Configurator
     end
 
     node_cache[:codec_list_xor][start_index] = r0
+
+    r0
+  end
+
+  module CodecListXorWithPrefix0
+    def key_prefix
+      elements[1]
+    end
+
+    def key_xor
+      elements[3]
+    end
+
+  end
+
+  module CodecListXorWithPrefix1
+    def value
+      {
+      codec_type: "CodecListXorWithPrefix", 
+      key_xor: key_xor.value, 
+      key_prefix: key_prefix.value
+      }
+    end
+  end
+
+  def _nt_codec_list_xor_with_prefix
+    start_index = index
+    if node_cache[:codec_list_xor_with_prefix].has_key?(index)
+      cached = node_cache[:codec_list_xor_with_prefix][index]
+      if cached
+        node_cache[:codec_list_xor_with_prefix][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    if (match_len = has_terminal?("LIST_XOR(", false, index))
+      r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+      @index += match_len
+    else
+      terminal_parse_failure('"LIST_XOR("')
+      r1 = nil
+    end
+    s0 << r1
+    if r1
+      r2 = _nt_key
+      s0 << r2
+      if r2
+        if (match_len = has_terminal?(";", false, index))
+          r3 = true
+          @index += match_len
+        else
+          terminal_parse_failure('";"')
+          r3 = nil
+        end
+        s0 << r3
+        if r3
+          r4 = _nt_key
+          s0 << r4
+          if r4
+            if (match_len = has_terminal?(")", false, index))
+              r5 = true
+              @index += match_len
+            else
+              terminal_parse_failure('")"')
+              r5 = nil
+            end
+            s0 << r5
+          end
+        end
+      end
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(CodecListXorWithPrefix0)
+      r0.extend(CodecListXorWithPrefix1)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:codec_list_xor_with_prefix][start_index] = r0
 
     r0
   end
