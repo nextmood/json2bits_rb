@@ -1,8 +1,9 @@
 class Codec
-    attr_reader :key, :codecs, :comment
+    attr_reader :key, :codecs, :statics, :comment
 
-    def initialize(key:, comment: nil)
+    def initialize(key:, statics: {}, comment: nil)
         @key = key
+        @statics = statics
         @comment = comment
     end
 
@@ -56,8 +57,8 @@ class Codec
 end
 
 class CodecFixLength < Codec
-    def initialize(key:, nb_bit:, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, nb_bit:, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @nb_bit = nb_bit
     end
 
@@ -67,8 +68,8 @@ class CodecFixLength < Codec
 end
 
 class CodecVoid < CodecFixLength
-    def initialize(key:, comment: nil)
-        super(key: key, nb_bit: 0, comment: comment)
+    def initialize(key:, statics: {}, comment: nil)
+        super(key: key, nb_bit: 0, statics: statics, comment: comment)
     end
 
     def deserialize(bit_stream)
@@ -77,11 +78,11 @@ class CodecVoid < CodecFixLength
 end
 
 class CodecInteger < CodecFixLength
-    def initialize(key:, max_integer: nil, nb_bit: nil, comment: nil)
+    def initialize(key:, max_integer: nil, nb_bit: nil, statics: {}, comment: nil)
         nb_bit ||= Math.log2(max_integer + 1).ceil
         raise "nb_bit must be greater than 0 and less than or equal to 64" if nb_bit < 1 || nb_bit > 64
         @max_integer ||= (2 ** nb_bit) - 1
-        super(key: key, nb_bit: nb_bit, comment: comment)
+        super(key: key, nb_bit: nb_bit, statics: statics, comment: comment)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -96,8 +97,8 @@ class CodecInteger < CodecFixLength
 end
 
 class CodecBoolean < CodecInteger
-    def initialize(key:, comment: nil)
-        super(key: key, max_integer: 1, nb_bit: 1, comment: comment)
+    def initialize(key:, statics: {}, comment: nil)
+        super(key: key, max_integer: 1, nb_bit: 1, statics: statics, comment: comment)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -113,9 +114,9 @@ class CodecBoolean < CodecInteger
 end
 
 class CodecSymbol < CodecInteger
-    def initialize(key:, symbols:, nb_bit: nil, comment: nil)
+    def initialize(key:, symbols:, nb_bit: nil, statics: {}, comment: nil)
         @symbols = symbols
-        super(key: key, max_integer: symbols.size - 1, nb_bit: nb_bit, comment: comment)
+        super(key: key, max_integer: symbols.size - 1, nb_bit: nb_bit, statics: statics, comment: comment)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -132,10 +133,10 @@ class CodecSymbol < CodecInteger
 end
 
 class CodecFloat < CodecInteger
-    def initialize(key:, min_float:, max_float:, nb_bit:, comment: nil)
+    def initialize(key:, min_float:, max_float:, nb_bit:, statics: {}, comment: nil)
         @min_float = min_float
         @max_float = max_float
-        super(key: key, nb_bit: nb_bit, comment: comment)
+        super(key: key, nb_bit: nb_bit, statics: statics, comment: comment)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -155,8 +156,8 @@ class CodecFloat < CodecInteger
 end
 
 class CodecBytes < CodecFixLength
-    def initialize(key:, nb_bytes:, comment: nil)
-        super(key: key, nb_bit: nb_bytes * 8, comment: comment)
+    def initialize(key:, nb_bytes:, statics: {}, comment: nil)
+        super(key: key, nb_bit: nb_bytes * 8, statics: statics, comment: comment)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -193,8 +194,8 @@ class CodecComposite < Codec
 end
 
 class CodecAlias < CodecComposite
-    def initialize(key:, target_key:, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, target_key:, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @target_key = target_key
     end
 
@@ -212,8 +213,8 @@ class CodecAlias < CodecComposite
 end
 
 class CodecIntegerLong < CodecComposite
-    def initialize(key:, bits_segement:, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, bits_segement:, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @bits_segment = bits_segement.sort.map { |nb_bit| [nb_bit, 2**nb_bit - 1] } 
         raise "integer can't have more than 64 bits" if @bits_segment.last.first > 64
         @max_value = @bits_segment.last.last
@@ -242,8 +243,8 @@ class CodecIntegerLong < CodecComposite
 end
 
 class CodecSequence < CodecComposite
-    def initialize(key:, keys:, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, keys:, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @keys = keys
     end
 
@@ -269,8 +270,8 @@ class CodecSequence < CodecComposite
 end
 
 class CodecArray < CodecComposite
-    def initialize(key:, item_key:, nb_item_max: nil, nb_bit: nil, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, item_key:, nb_item_max: nil, nb_bit: nil, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @item_key = item_key
         @counter_nb_bits = nb_bit || Math.log2(nb_item_max + 1).ceil
     end
@@ -300,8 +301,8 @@ end
 class CodecXor < CodecComposite
     attr_reader :bkey_2_codec, :key_2_bkey, :nb_bit_binary_key
 
-    def initialize(key:, comment: nil, nb_bit_binary_key: nil, binary_keys:)
-        super(key: key, comment: comment)
+    def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:)
+        super(key: key, statics: statics, comment: comment)
         @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
         @binary_keys = binary_keys
         @max_type = 2 ** @nb_bit_binary_key
@@ -359,8 +360,8 @@ end
 # List
 class CodecListXor < CodecComposite
 
-    def initialize(key:, key_xor:, comment: nil)
-        super(key: key, comment: comment)
+    def initialize(key:, key_xor:, statics: {}, comment: nil)
+        super(key: key, statics: statics, comment: comment)
         @key_xor = key_xor
     end
 
@@ -413,8 +414,8 @@ end
 # List with prefix
 class CodecListXorWithPrefix < CodecListXor
 
-    def initialize(key:, key_prefix:, key_xor:, comment: nil)
-        super(key:, key_xor:, comment: nil)
+    def initialize(key:, key_prefix:, key_xor:, statics: {}, comment: nil)
+        super(key:, key_xor:, statics: statics, comment: comment)
         @key_prefix = key_prefix
     end
 

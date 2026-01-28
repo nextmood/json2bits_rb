@@ -1,7 +1,7 @@
 network_id INTEGER(16)
-add_child ALIAS(network_id)
-lost_child ALIAS(network_id)
-alarm SYMBOL(8;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)
-temperature FLOAT(8;0.0;200.0)
+add_child ALIAS(network_id) STATIC(priority=2)
+lost_child ALIAS(network_id) STATIC(priority=2)
+alarm SYMBOL(8;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall) STATIC(priority=1;need_acknowledgement)
+temperature FLOAT(8;0.0;200.0) STATIC(priority=3)
 server_fragment XOR(8;0x01:add_child;0x02:lost_child;0x03:alarm;0x04:temperature) // 8 is the number of bit to encode the list key
 server_signals LIST_XOR(network_id;server_fragment)

@@ -30,11 +30,12 @@ grammar Configurator
   end  
 
   rule line
-    space? key space codec c:comment* {
+    space? key space codec s:statics* c:comment* {
         def value
           parameters = { 
                 key: key.value,
-                comment: (c.elements[0] ? c.elements[0].value : "") 
+                comment: (c.elements[0] ? c.elements[0].value : ""),
+                statics: (s.elements[0] ? s.elements[0].value : {}) 
             }
           parameters.merge!(codec.value)
           codec_type = parameters.delete(:codec_type)
@@ -49,8 +50,9 @@ grammar Configurator
         text_value
       end
     }
-  
   end
+
+
 
   rule codec
     codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor_with_prefix / codec_list_xor
@@ -180,6 +182,28 @@ grammar Configurator
     }
   end
 
+  rule static_value
+    float / integer / hexa / boolean / key 
+  end
+
+  rule static_key_value
+    key s:("=" static_value)* { 
+        def value 
+            k = key.value 
+            v = s.elements[0] ? s.elements[0].static_value.value : true
+            { k => v }
+        end 
+    }
+  end
+
+  rule statics 
+    space* "STATIC(" f:static_key_value s:(";" static_key_value)* ")" {
+        def value 
+          s.elements.inject(f.value) { |h, elt| h.merge!(elt.static_key_value.value) }
+        end
+    }
+  end
+
   rule binary_key
      hexa ":" key { 
         def value 
@@ -212,6 +236,14 @@ grammar Configurator
     }
   end
     
+  rule boolean
+    "true" / "false" {
+        def value 
+            text_value == "true"
+        end 
+    }
+  end
+
   # list separator  
   rule spl
     space? ";" space?

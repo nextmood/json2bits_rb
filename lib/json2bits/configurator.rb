@@ -139,8 +139,12 @@ module Configurator
       elements[3]
     end
 
-    def c
+    def s
       elements[4]
+    end
+
+    def c
+      elements[5]
     end
   end
 
@@ -148,7 +152,8 @@ module Configurator
     def value
       parameters = { 
             key: key.value,
-            comment: (c.elements[0] ? c.elements[0].value : "") 
+            comment: (c.elements[0] ? c.elements[0].value : ""),
+            statics: (s.elements[0] ? s.elements[0].value : {}) 
         }
       parameters.merge!(codec.value)
       codec_type = parameters.delete(:codec_type)
@@ -187,7 +192,7 @@ module Configurator
           if r5
             s6, i6 = [], index
             loop do
-              r7 = _nt_comment
+              r7 = _nt_statics
               if r7
                 s6 << r7
               else
@@ -196,6 +201,19 @@ module Configurator
             end
             r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
             s0 << r6
+            if r6
+              s8, i8 = [], index
+              loop do
+                r9 = _nt_comment
+                if r9
+                  s8 << r9
+                else
+                  break
+                end
+              end
+              r8 = instantiate_node(SyntaxNode,input, i8...index, s8)
+              s0 << r8
+            end
           end
         end
       end
@@ -1424,6 +1442,257 @@ module Configurator
     r0
   end
 
+  def _nt_static_value
+    start_index = index
+    if node_cache[:static_value].has_key?(index)
+      cached = node_cache[:static_value][index]
+      if cached
+        node_cache[:static_value][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0 = index
+    r1 = _nt_float
+    if r1
+      r1 = SyntaxNode.new(input, (index-1)...index) if r1 == true
+      r0 = r1
+    else
+      r2 = _nt_integer
+      if r2
+        r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
+        r0 = r2
+      else
+        r3 = _nt_hexa
+        if r3
+          r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
+          r0 = r3
+        else
+          r4 = _nt_boolean
+          if r4
+            r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
+            r0 = r4
+          else
+            r5 = _nt_key
+            if r5
+              r5 = SyntaxNode.new(input, (index-1)...index) if r5 == true
+              r0 = r5
+            else
+              @index = i0
+              r0 = nil
+            end
+          end
+        end
+      end
+    end
+
+    node_cache[:static_value][start_index] = r0
+
+    r0
+  end
+
+  module StaticKeyValue0
+    def static_value
+      elements[1]
+    end
+  end
+
+  module StaticKeyValue1
+    def key
+      elements[0]
+    end
+
+    def s
+      elements[1]
+    end
+  end
+
+  module StaticKeyValue2
+
+    def value 
+        k = key.value 
+        v = s.elements[0] ? s.elements[0].static_value.value : true
+        { k => v }
+    end
+  end
+
+  def _nt_static_key_value
+    start_index = index
+    if node_cache[:static_key_value].has_key?(index)
+      cached = node_cache[:static_key_value][index]
+      if cached
+        node_cache[:static_key_value][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    r1 = _nt_key
+    s0 << r1
+    if r1
+      s2, i2 = [], index
+      loop do
+        i3, s3 = index, []
+        if (match_len = has_terminal?("=", false, index))
+          r4 = true
+          @index += match_len
+        else
+          terminal_parse_failure('"="')
+          r4 = nil
+        end
+        s3 << r4
+        if r4
+          r5 = _nt_static_value
+          s3 << r5
+        end
+        if s3.last
+          r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
+          r3.extend(StaticKeyValue0)
+        else
+          @index = i3
+          r3 = nil
+        end
+        if r3
+          s2 << r3
+        else
+          break
+        end
+      end
+      r2 = instantiate_node(SyntaxNode,input, i2...index, s2)
+      s0 << r2
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(StaticKeyValue1)
+      r0.extend(StaticKeyValue2)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:static_key_value][start_index] = r0
+
+    r0
+  end
+
+  module Statics0
+    def static_key_value
+      elements[1]
+    end
+  end
+
+  module Statics1
+    def f
+      elements[2]
+    end
+
+    def s
+      elements[3]
+    end
+
+  end
+
+  module Statics2
+    def value 
+      s.elements.inject(f.value) { |h, elt| h.merge!(elt.static_key_value.value) }
+    end
+  end
+
+  def _nt_statics
+    start_index = index
+    if node_cache[:statics].has_key?(index)
+      cached = node_cache[:statics][index]
+      if cached
+        node_cache[:statics][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    s1, i1 = [], index
+    loop do
+      r2 = _nt_space
+      if r2
+        s1 << r2
+      else
+        break
+      end
+    end
+    r1 = instantiate_node(SyntaxNode,input, i1...index, s1)
+    s0 << r1
+    if r1
+      if (match_len = has_terminal?("STATIC(", false, index))
+        r3 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+        @index += match_len
+      else
+        terminal_parse_failure('"STATIC("')
+        r3 = nil
+      end
+      s0 << r3
+      if r3
+        r4 = _nt_static_key_value
+        s0 << r4
+        if r4
+          s5, i5 = [], index
+          loop do
+            i6, s6 = index, []
+            if (match_len = has_terminal?(";", false, index))
+              r7 = true
+              @index += match_len
+            else
+              terminal_parse_failure('";"')
+              r7 = nil
+            end
+            s6 << r7
+            if r7
+              r8 = _nt_static_key_value
+              s6 << r8
+            end
+            if s6.last
+              r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
+              r6.extend(Statics0)
+            else
+              @index = i6
+              r6 = nil
+            end
+            if r6
+              s5 << r6
+            else
+              break
+            end
+          end
+          r5 = instantiate_node(SyntaxNode,input, i5...index, s5)
+          s0 << r5
+          if r5
+            if (match_len = has_terminal?(")", false, index))
+              r9 = true
+              @index += match_len
+            else
+              terminal_parse_failure('")"')
+              r9 = nil
+            end
+            s0 << r9
+          end
+        end
+      end
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(Statics1)
+      r0.extend(Statics2)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:statics][start_index] = r0
+
+    r0
+  end
+
   module BinaryKey0
     def hexa
       elements[0]
@@ -1666,6 +1935,57 @@ module Configurator
     end
 
     node_cache[:hexa][start_index] = r0
+
+    r0
+  end
+
+  module Boolean0
+    def value 
+        text_value == "true"
+    end
+  end
+
+  def _nt_boolean
+    start_index = index
+    if node_cache[:boolean].has_key?(index)
+      cached = node_cache[:boolean][index]
+      if cached
+        node_cache[:boolean][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0 = index
+    if (match_len = has_terminal?("true", false, index))
+      r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+      @index += match_len
+    else
+      terminal_parse_failure('"true"')
+      r1 = nil
+    end
+    if r1
+      r1 = SyntaxNode.new(input, (index-1)...index) if r1 == true
+      r0 = r1
+    else
+      if (match_len = has_terminal?("false", false, index))
+        r2 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+        r2.extend(Boolean0)
+        @index += match_len
+      else
+        terminal_parse_failure('"false"')
+        r2 = nil
+      end
+      if r2
+        r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
+        r0 = r2
+      else
+        @index = i0
+        r0 = nil
+      end
+    end
+
+    node_cache[:boolean][start_index] = r0
 
     r0
   end

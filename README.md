@@ -138,6 +138,29 @@ Each line of the configuration describes one codec:
 | `LIST_XOR` | `LIST_XOR(key_xor)` | Heterogeneous list that reuses a named `XOR` definition and appends a `0x00` terminator when not last. |
 | `LIST_XOR` (with prefix) | `LIST_XOR(prefix_key;key_xor)` | Like `LIST_XOR` but prepends each item with a prefix value (e.g., a device ID). The prefix codec must be fixed-length. |
 
+### Static metadata
+
+You can attach arbitrary metadata to any codec using the `STATIC` clause:
+
+```
+temperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)
+```
+
+Static values can be:
+- **Strings**: `unit=celsius`
+- **Integers**: `precision=2`
+- **Floats**: `threshold=0.5`
+- **Hexadecimal**: `mask=0xFF`
+- **Booleans**: `enabled=true` or `enabled=false`
+- **Flags** (no value defaults to `true`): `readonly`
+
+Access the metadata via the `statics` attribute:
+
+```ruby
+codec = codecs.key_2_codec("temperature")
+codec.statics # => {"unit" => "celsius", "precision" => 2, "readonly" => true}
+```
+
 ### Working with codecs directly
 
 You can also instantiate codecs in Ruby without the DSL:
