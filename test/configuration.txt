@@ -1,10 +1,10 @@
 nid INTEGER(16)
-timestamp INTEGER(48)
-too_many_reboot_alarm VOID
-too_many_resync_alarm VOID
-battery_indicator_alarm SYMBOL(8;low;critical)
-too_many_accelerometer_wake_up_alarm VOID 
-accelerometer_alarm SYMBOL(8;motion;freefall)
+timestamp BYTES(6)
+too_many_reboot_alarm VOID STATIC(ack_required)
+too_many_resync_alarm VOID STATIC(ack_required)
+battery_indicator_alarm SYMBOL(8;low;critical) STATIC(ack_required)
+too_many_accelerometer_wake_up_alarm VOID STATIC(ack_required) 
+accelerometer_alarm SYMBOL(8;motion;freefall) STATIC(ack_required)
 add_child_nid ALIAS(nid)
 lost_child_nid ALIAS(nid)
 new_parent_nid ALIAS(nid)

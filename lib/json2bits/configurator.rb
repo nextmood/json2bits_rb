@@ -363,48 +363,54 @@ module Configurator
           r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
           r0 = r3
         else
-          r4 = _nt_codec_hexa
+          r4 = _nt_codec_bytes
           if r4
             r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
             r0 = r4
           else
-            r5 = _nt_codec_symbol
+            r5 = _nt_codec_hexa
             if r5
               r5 = SyntaxNode.new(input, (index-1)...index) if r5 == true
               r0 = r5
             else
-              r6 = _nt_codec_void
+              r6 = _nt_codec_symbol
               if r6
                 r6 = SyntaxNode.new(input, (index-1)...index) if r6 == true
                 r0 = r6
               else
-                r7 = _nt_codec_sequence
+                r7 = _nt_codec_void
                 if r7
                   r7 = SyntaxNode.new(input, (index-1)...index) if r7 == true
                   r0 = r7
                 else
-                  r8 = _nt_codec_alias
+                  r8 = _nt_codec_sequence
                   if r8
                     r8 = SyntaxNode.new(input, (index-1)...index) if r8 == true
                     r0 = r8
                   else
-                    r9 = _nt_codec_array
+                    r9 = _nt_codec_alias
                     if r9
                       r9 = SyntaxNode.new(input, (index-1)...index) if r9 == true
                       r0 = r9
                     else
-                      r10 = _nt_codec_xor
+                      r10 = _nt_codec_array
                       if r10
                         r10 = SyntaxNode.new(input, (index-1)...index) if r10 == true
                         r0 = r10
                       else
-                        r11 = _nt_codec_list
+                        r11 = _nt_codec_xor
                         if r11
                           r11 = SyntaxNode.new(input, (index-1)...index) if r11 == true
                           r0 = r11
                         else
-                          @index = i0
-                          r0 = nil
+                          r12 = _nt_codec_list
+                          if r12
+                            r12 = SyntaxNode.new(input, (index-1)...index) if r12 == true
+                            r0 = r12
+                          else
+                            @index = i0
+                            r0 = nil
+                          end
                         end
                       end
                     end
@@ -694,6 +700,77 @@ module Configurator
     end
 
     node_cache[:codec_hexa][start_index] = r0
+
+    r0
+  end
+
+  module CodecBytes0
+    def nb_bytes
+      elements[2]
+    end
+
+  end
+
+  module CodecBytes1
+    def value
+      {codec_type: "CodecBytes", nb_bytes: nb_bytes.value } 
+    end
+  end
+
+  def _nt_codec_bytes
+    start_index = index
+    if node_cache[:codec_bytes].has_key?(index)
+      cached = node_cache[:codec_bytes][index]
+      if cached
+        node_cache[:codec_bytes][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    if (match_len = has_terminal?("BYTES", false, index))
+      r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+      @index += match_len
+    else
+      terminal_parse_failure('"BYTES"')
+      r1 = nil
+    end
+    s0 << r1
+    if r1
+      if (match_len = has_terminal?("(", false, index))
+        r2 = true
+        @index += match_len
+      else
+        terminal_parse_failure('"("')
+        r2 = nil
+      end
+      s0 << r2
+      if r2
+        r3 = _nt_integer
+        s0 << r3
+        if r3
+          if (match_len = has_terminal?(")", false, index))
+            r4 = true
+            @index += match_len
+          else
+            terminal_parse_failure('")"')
+            r4 = nil
+          end
+          s0 << r4
+        end
+      end
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(CodecBytes0)
+      r0.extend(CodecBytes1)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:codec_bytes][start_index] = r0
 
     r0
   end
@@ -1165,7 +1242,7 @@ module Configurator
       {
         codec_type: "CodecXor", 
         nb_bit_binary_key: integer.value,
-        binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
+        binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) },
         prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
       }
     end

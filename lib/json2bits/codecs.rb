@@ -301,7 +301,7 @@ end
 class CodecXor < CodecComposite
     attr_reader :bkey_2_codec, :key_2_bkey, :nb_bit_binary_key
 
-    def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:, prefix_keys:)
+    def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:, prefix_keys: [])
         super(key: key, statics: statics, comment: comment)
         @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
         @binary_keys = binary_keys
@@ -345,13 +345,13 @@ class CodecXor < CodecComposite
         bit_stream.write_bits(xor_bkey, @nb_bit_binary_key)
 
         @prefix_codecs.each { |prefix_codec| prefix_codec.serialize(bit_stream, value[prefix_codec.key], is_last: false) }
-        xor_codec = @codecs.key_2_codec(item_key)
-        codec.serialize(bit_stream, xor_value, is_last: is_last)
+        xor_codec = @codecs.key_2_codec(xor_key)
+        xor_codec.serialize(bit_stream, xor_value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
         xor_bkey = bit_stream.read_bits(@nb_bit_binary_key)
-        xor_codec = @bkey_2_codec[xor_key]
+        xor_codec = @bkey_2_codec[xor_bkey]
         raise "Unknown binary key #{xor_bkey} during XOR deserialization" if xor_codec.nil?
         h = {}
         @prefix_codecs.each { |prefix_codec| h[prefix_codec.key] = prefix_codec.deserialize(bit_stream) }
@@ -397,22 +397,26 @@ class CodecList < CodecComposite
         super(bit_stream, item_values, is_last: is_last)
     end
 
-    def deserialize(bit_stream)
-        result = []
-        while (bkey = read_bkey(bit_stream, nb_bit: @nb_bit_binary_key)) != 0x0
-            item_codec = @xor_codec.bkey_2_codec[bkey]
-            raise "Unknown binary key #{bkey} during list item deserialization" if item_codec.nil?
-            item_value = item_codec.deserialize(bit_stream)
-            result << { item_codec.key => item_value }
-        end
-        result
+    def deserialize(bit_stream, result: [])
+        return result if is_end_of_list?(bit_stream)
+        result << @item_codec.deserialize(bit_stream)
+        deserialize(bit_stream, result: result)
     end
 
-    def read_bkey(bit_stream, nb_bit:)
-        begin
-            bit_stream.read_bits(nb_bit)
+    private
+
+    def is_end_of_list?(bit_stream)
+        value = begin
+            bit_stream.read_bits(@nb_bit_binary_key, dry_run: true)
         rescue Json2Bits::NoMoreBitsError
-            0x0
+            return true  # No more bits, end of list
+        end
+
+        if value == 0x0
+            bit_stream.read_bits(@nb_bit_binary_key)  # Consume the terminator
+            true
+        else
+            false
         end
     end
 

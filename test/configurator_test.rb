@@ -83,16 +83,16 @@ class ConfiguratorTest < Minitest::Test
 
   end
 
-  def test_it_should_parse_a_list_xor
+  def test_it_should_parse_a_list
     assert parsed = @parser.parse(
       "device_index INTEGER(4)
        temperature FLOAT(4;0.0;100.0)
        measurement XOR(2;[0x01:device_index;0x02:temperature])
-       measurements LIST_XOR(measurement)\n")
+       measurements LIST(measurement)\n")
 
     codecs = parsed.value
-    codec_list_xor = codecs.key_2_codec("measurements")
-    assert codec_list_xor.is_a?(CodecListXor)
+    codec_list = codecs.key_2_codec("measurements")
+    assert codec_list.is_a?(CodecList)
 
     payload = [
       { "device_index" => 5 },
@@ -100,31 +100,9 @@ class ConfiguratorTest < Minitest::Test
       { "device_index" => 10 }
     ]
 
-    bytes = codec_list_xor.serialize_to_bytes(payload)
-    decoded = codec_list_xor.deserialize_from_bytes(bytes)
-    assert_equal payload, decoded
-  end
+    bytes = codec_list.serialize_to_bytes(payload)
 
-  def test_it_should_parse_a_list_xor_with_prefix
-    assert parsed = @parser.parse(
-      "sensor_id INTEGER(4)
-       device_index INTEGER(4)
-       temperature FLOAT(4;0.0;100.0)
-       measurement XOR(2;[0x01:device_index;0x02:temperature])
-       measurements LIST_XOR(sensor_id;measurement)\n")
-
-    codecs = parsed.value
-    codec_list_xor = codecs.key_2_codec("measurements")
-    assert codec_list_xor.is_a?(CodecListXorWithPrefix)
-
-    payload = [
-      { "sensor_id" => 1, "device_index" => 5 },
-      { "sensor_id" => 2, "temperature" => 100.0 },
-      { "sensor_id" => 3, "device_index" => 10 }
-    ]
-
-    bytes = codec_list_xor.serialize_to_bytes(payload)
-    decoded = codec_list_xor.deserialize_from_bytes(bytes)
+    decoded = codec_list.deserialize_from_bytes(bytes)
     assert_equal payload, decoded
   end
 
@@ -134,31 +112,31 @@ class ConfiguratorTest < Minitest::Test
     codecs = parsed.value
     assert codecs.is_a?(Codecs)
     assert_equal 12, codecs.dictionnary.size
-    assert_equal ["nid", "timestamp", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "signal_xor", "signals"], codecs.dictionnary.keys
+    assert_equal ["nid", "timestamp", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "signal", "signals"], codecs.dictionnary.keys
 
-    codec_server_signals = codecs.key_2_codec("server_signals")
-    
-    payload_as_bytes = [0x00, 0x01, 0x01, 0x00, 0x05]
-    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
-    assert_equal([{"network_id" => 1, "add_child" => 5}], decoded)
+    codec_signal = codecs.key_2_codec("signal")
+    assert codec_signal.is_a?(CodecXor)
 
-    payload_as_bytes = [0x00, 0x01, 0x02, 0x00, 0x05]
-    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
-    assert_equal([{"network_id" => 1, "lost_child" => 5}], decoded)
+    codec_signals = codecs.key_2_codec("signals")
+    assert codec_signals.is_a?(CodecList)
 
-    payload_as_bytes = [0x00, 0x01, 0x03, 0x00]
-    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
-    assert_equal([{"network_id" => 1, "alarm" => "too_many_reboot"}], decoded)
+    # testing statics
+    codec_too_many_reboot_alarm = codecs.key_2_codec("too_many_reboot_alarm")
+    assert codec_too_many_reboot_alarm.statics["ack_required"]
 
-    payload_as_bytes = [0x00, 0x01, 0x04, 0xFF]
-    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
-    assert_equal([{"network_id" => 1, "temperature" => 200.0}], decoded)
+    # serialize and deserialize a simple list of signals
+    input_ori = [{"nid" => 45, "timestamp" => "\xF9\xFA\xFB\xFC\xFD\xFE".b, "add_child_nid" => 12}]
+    writer = BitStream.new
+    codec_signals.serialize(writer, input_ori)
 
-    payload_as_bytes = [0x00, 0x01, 0x01, 0x00, 0x05, 0x00, 0x01, 0x02, 0x00, 0x05, 0x00, 0x01, 0x03, 0x00, 0x00, 0x01, 0x04, 0xFF]
-    decoded = codec_server_signals.deserialize_from_bytes(payload_as_bytes)
-    assert_equal([{"network_id" => 1, "add_child" => 5},{"network_id" => 1, "lost_child" => 5},{"network_id" => 1, "alarm" => "too_many_reboot"},{"network_id" => 1, "temperature" => 200.0}], decoded)
+    assert_equal  (8 + 16 + 48) + (16), writer.nb_bits_written
+    assert_equal writer.bytes, [0x01, 0x00, 0x2d, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0x00, 0x0C]
 
+    reader = BitStream.new(bytes: writer.bytes.dup)
+    input_bis = codec_signals.deserialize(reader)
+    assert_equal input_ori, input_bis
   end
+
 
   def test_it_should_parse_statics
     assert parsed = @parser.parse("temperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)\n")
@@ -177,7 +155,7 @@ class ConfiguratorTest < Minitest::Test
           battery_status SYMBOL(3;ok;charging;low)
           device_index INTEGER(4)
           measurement XOR(3;[0x01:position;0x02:battery_percent;0x03:battery_status;0x04:device_index])
-          measurements LIST_XOR(measurement)
+          measurements LIST(measurement)
       CFG
 
     parser = ConfiguratorParser.new
@@ -187,7 +165,7 @@ class ConfiguratorTest < Minitest::Test
 
     # Keys coming from the parser are strings
     measurements = codecs.key_2_codec("measurements")
-    assert measurements.is_a?(CodecListXor)
+    assert measurements.is_a?(CodecList)
 
     payload = [
       { "battery_percent" => 80.0 },

@@ -123,7 +123,7 @@ class CodecsTest < Minitest::Test
       binary_keys: { :temperature => 0x1, :humidity => 0x2 }
     ))
 
-    codec = @codecs.add_codec(CodecListXor.new(key: :measurements, key_xor: :item))
+    codec = @codecs.add_codec(CodecList.new(key: :measurements, item_key: :item))
 
     input = [{:temperature => 45}, {:humidity => 39}]
 
@@ -143,7 +143,7 @@ class CodecsTest < Minitest::Test
     temperature_codec = @codecs.add_codec(CodecInteger.new(key: :temperature, nb_bit: 6))
     humidity_codec = @codecs.add_codec(CodecInteger.new(key: :humidity, nb_bit: 6))
     measurement_codec = @codecs.add_codec(CodecXor.new(key: :measurement, nb_bit_binary_key: 4, binary_keys: { :temperature => 0x1, :humidity => 0x2 }))
-    measurements_codec = @codecs.add_codec(CodecListXor.new(key: :measurements, key_xor: :measurement))
+    measurements_codec = @codecs.add_codec(CodecList.new(key: :measurements, item_key: :measurement))
     codec_sequence = @codecs.add_codec(CodecSequence.new(key: :data, keys: [:speed, :measurements]))
 
     input = {

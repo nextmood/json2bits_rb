@@ -53,7 +53,7 @@ grammar Configurator
   end
 
   rule codec
-    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
+    codec_boolean / codec_integer / codec_float / codec_bytes / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
   end
 
   rule codec_boolean 
@@ -88,6 +88,13 @@ grammar Configurator
     }
   end
 
+  rule codec_bytes 
+    "BYTES" "(" nb_bytes:integer ")" {
+        def value
+          {codec_type: "CodecBytes", nb_bytes: nb_bytes.value } 
+        end
+    }
+  end
 
   rule codec_symbol 
     "SYMBOL" "(" nb_bit:integer spl keys ")" {
@@ -147,7 +154,7 @@ grammar Configurator
         {
           codec_type: "CodecXor", 
           nb_bit_binary_key: integer.value,
-          binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
+          binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) },
           prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
         }
       end
