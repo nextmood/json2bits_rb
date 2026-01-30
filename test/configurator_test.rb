@@ -50,7 +50,7 @@ class ConfiguratorTest < Minitest::Test
     assert parsed.value
     assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\n")
     assert parsed.value    
-    assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\nmeasurement XOR(2;0x01:device_index;0x02:temperature)\n")
+    assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\nmeasurement XOR(2;[0x01:device_index;0x02:temperature])\n")
     assert parsed.value
   end
 
@@ -71,7 +71,7 @@ class ConfiguratorTest < Minitest::Test
     assert parsed = @parser.parse(
       "device_index_short INTEGER(7)
        device_index_long INTEGER(15)
-       device_index XOR(1;0x00:device_index_short;0x01:device_index_long)\n")
+       device_index XOR(1;[0x00:device_index_short;0x01:device_index_long])\n")
 
     codecs = parsed.value
     codec_xor = codecs.key_2_codec("device_index")
@@ -87,7 +87,7 @@ class ConfiguratorTest < Minitest::Test
     assert parsed = @parser.parse(
       "device_index INTEGER(4)
        temperature FLOAT(4;0.0;100.0)
-       measurement XOR(2;0x01:device_index;0x02:temperature)
+       measurement XOR(2;[0x01:device_index;0x02:temperature])
        measurements LIST_XOR(measurement)\n")
 
     codecs = parsed.value
@@ -110,7 +110,7 @@ class ConfiguratorTest < Minitest::Test
       "sensor_id INTEGER(4)
        device_index INTEGER(4)
        temperature FLOAT(4;0.0;100.0)
-       measurement XOR(2;0x01:device_index;0x02:temperature)
+       measurement XOR(2;[0x01:device_index;0x02:temperature])
        measurements LIST_XOR(sensor_id;measurement)\n")
 
     codecs = parsed.value
@@ -133,8 +133,8 @@ class ConfiguratorTest < Minitest::Test
     assert parsed = @parser.parse(configuration)
     codecs = parsed.value
     assert codecs.is_a?(Codecs)
-    assert_equal 7, codecs.dictionnary.size
-    assert_equal ["network_id", "add_child", "lost_child", "alarm", "temperature", "server_fragment", "server_signals"], codecs.dictionnary.keys
+    assert_equal 12, codecs.dictionnary.size
+    assert_equal ["nid", "timestamp", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "signal_xor", "signals"], codecs.dictionnary.keys
 
     codec_server_signals = codecs.key_2_codec("server_signals")
     
@@ -176,7 +176,7 @@ class ConfiguratorTest < Minitest::Test
           battery_percent FLOAT(8;0.0;100.0)
           battery_status SYMBOL(3;ok;charging;low)
           device_index INTEGER(4)
-          measurement XOR(3;0x01:position;0x02:battery_percent;0x03:battery_status;0x04:device_index)
+          measurement XOR(3;[0x01:position;0x02:battery_percent;0x03:battery_status;0x04:device_index])
           measurements LIST_XOR(measurement)
       CFG
 

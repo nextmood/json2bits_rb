@@ -398,19 +398,13 @@ module Configurator
                         r10 = SyntaxNode.new(input, (index-1)...index) if r10 == true
                         r0 = r10
                       else
-                        r11 = _nt_codec_list_xor_with_prefix
+                        r11 = _nt_codec_list
                         if r11
                           r11 = SyntaxNode.new(input, (index-1)...index) if r11 == true
                           r0 = r11
                         else
-                          r12 = _nt_codec_list_xor
-                          if r12
-                            r12 = SyntaxNode.new(input, (index-1)...index) if r12 == true
-                            r0 = r12
-                          else
-                            @index = i0
-                            r0 = nil
-                          end
+                          @index = i0
+                          r0 = nil
                         end
                       end
                     end
@@ -1051,39 +1045,39 @@ module Configurator
     r0
   end
 
-  module CodecListXor0
-    def key_xor
+  module CodecList0
+    def key
       elements[1]
     end
 
   end
 
-  module CodecListXor1
+  module CodecList1
     def value
       {
-      codec_type: "CodecListXor", 
-      key_xor: key_xor.value, 
+      codec_type: "CodecList", 
+      item_key: key.value, 
       }
     end
   end
 
-  def _nt_codec_list_xor
+  def _nt_codec_list
     start_index = index
-    if node_cache[:codec_list_xor].has_key?(index)
-      cached = node_cache[:codec_list_xor][index]
+    if node_cache[:codec_list].has_key?(index)
+      cached = node_cache[:codec_list][index]
       if cached
-        node_cache[:codec_list_xor][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        node_cache[:codec_list][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
         @index = cached.interval.end
       end
       return cached
     end
 
     i0, s0 = index, []
-    if (match_len = has_terminal?("LIST_XOR(", false, index))
+    if (match_len = has_terminal?("LIST(", false, index))
       r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
       @index += match_len
     else
-      terminal_parse_failure('"LIST_XOR("')
+      terminal_parse_failure('"LIST("')
       r1 = nil
     end
     s0 << r1
@@ -1103,95 +1097,14 @@ module Configurator
     end
     if s0.last
       r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
-      r0.extend(CodecListXor0)
-      r0.extend(CodecListXor1)
+      r0.extend(CodecList0)
+      r0.extend(CodecList1)
     else
       @index = i0
       r0 = nil
     end
 
-    node_cache[:codec_list_xor][start_index] = r0
-
-    r0
-  end
-
-  module CodecListXorWithPrefix0
-    def key_prefix
-      elements[1]
-    end
-
-    def spl
-      elements[2]
-    end
-
-    def key_xor
-      elements[3]
-    end
-
-  end
-
-  module CodecListXorWithPrefix1
-    def value
-      {
-      codec_type: "CodecListXorWithPrefix", 
-      key_xor: key_xor.value, 
-      key_prefix: key_prefix.value
-      }
-    end
-  end
-
-  def _nt_codec_list_xor_with_prefix
-    start_index = index
-    if node_cache[:codec_list_xor_with_prefix].has_key?(index)
-      cached = node_cache[:codec_list_xor_with_prefix][index]
-      if cached
-        node_cache[:codec_list_xor_with_prefix][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
-        @index = cached.interval.end
-      end
-      return cached
-    end
-
-    i0, s0 = index, []
-    if (match_len = has_terminal?("LIST_XOR(", false, index))
-      r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
-      @index += match_len
-    else
-      terminal_parse_failure('"LIST_XOR("')
-      r1 = nil
-    end
-    s0 << r1
-    if r1
-      r2 = _nt_key
-      s0 << r2
-      if r2
-        r3 = _nt_spl
-        s0 << r3
-        if r3
-          r4 = _nt_key
-          s0 << r4
-          if r4
-            if (match_len = has_terminal?(")", false, index))
-              r5 = true
-              @index += match_len
-            else
-              terminal_parse_failure('")"')
-              r5 = nil
-            end
-            s0 << r5
-          end
-        end
-      end
-    end
-    if s0.last
-      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
-      r0.extend(CodecListXorWithPrefix0)
-      r0.extend(CodecListXorWithPrefix1)
-    else
-      @index = i0
-      r0 = nil
-    end
-
-    node_cache[:codec_list_xor_with_prefix][start_index] = r0
+    node_cache[:codec_list][start_index] = r0
 
     r0
   end
@@ -1207,6 +1120,16 @@ module Configurator
   end
 
   module CodecXor1
+    def spl
+      elements[0]
+    end
+
+    def key
+      elements[1]
+    end
+  end
+
+  module CodecXor2
     def integer
       elements[1]
     end
@@ -1215,22 +1138,35 @@ module Configurator
       elements[2]
     end
 
+    def loose_space1
+      elements[4]
+    end
+
     def b
-      elements[3]
+      elements[5]
     end
 
     def bs
-      elements[4]
+      elements[6]
+    end
+
+    def loose_space2
+      elements[8]
+    end
+
+    def ps
+      elements[9]
     end
 
   end
 
-  module CodecXor2
+  module CodecXor3
     def value
       {
         codec_type: "CodecXor", 
         nb_bit_binary_key: integer.value,
         binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
+        prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
       }
     end
   end
@@ -1262,42 +1198,96 @@ module Configurator
         r3 = _nt_spl
         s0 << r3
         if r3
-          r4 = _nt_binary_key
+          if (match_len = has_terminal?("[", false, index))
+            r4 = true
+            @index += match_len
+          else
+            terminal_parse_failure('"["')
+            r4 = nil
+          end
           s0 << r4
           if r4
-            s5, i5 = [], index
-            loop do
-              i6, s6 = index, []
-              r7 = _nt_spl
-              s6 << r7
-              if r7
-                r8 = _nt_binary_key
-                s6 << r8
-              end
-              if s6.last
-                r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
-                r6.extend(CodecXor0)
-              else
-                @index = i6
-                r6 = nil
-              end
-              if r6
-                s5 << r6
-              else
-                break
-              end
-            end
-            r5 = instantiate_node(SyntaxNode,input, i5...index, s5)
+            r5 = _nt_loose_space
             s0 << r5
             if r5
-              if (match_len = has_terminal?(")", false, index))
-                r9 = true
-                @index += match_len
-              else
-                terminal_parse_failure('")"')
-                r9 = nil
+              r6 = _nt_binary_key
+              s0 << r6
+              if r6
+                s7, i7 = [], index
+                loop do
+                  i8, s8 = index, []
+                  r9 = _nt_spl
+                  s8 << r9
+                  if r9
+                    r10 = _nt_binary_key
+                    s8 << r10
+                  end
+                  if s8.last
+                    r8 = instantiate_node(SyntaxNode,input, i8...index, s8)
+                    r8.extend(CodecXor0)
+                  else
+                    @index = i8
+                    r8 = nil
+                  end
+                  if r8
+                    s7 << r8
+                  else
+                    break
+                  end
+                end
+                r7 = instantiate_node(SyntaxNode,input, i7...index, s7)
+                s0 << r7
+                if r7
+                  if (match_len = has_terminal?("]", false, index))
+                    r11 = true
+                    @index += match_len
+                  else
+                    terminal_parse_failure('"]"')
+                    r11 = nil
+                  end
+                  s0 << r11
+                  if r11
+                    r12 = _nt_loose_space
+                    s0 << r12
+                    if r12
+                      s13, i13 = [], index
+                      loop do
+                        i14, s14 = index, []
+                        r15 = _nt_spl
+                        s14 << r15
+                        if r15
+                          r16 = _nt_key
+                          s14 << r16
+                        end
+                        if s14.last
+                          r14 = instantiate_node(SyntaxNode,input, i14...index, s14)
+                          r14.extend(CodecXor1)
+                        else
+                          @index = i14
+                          r14 = nil
+                        end
+                        if r14
+                          s13 << r14
+                        else
+                          break
+                        end
+                      end
+                      r13 = instantiate_node(SyntaxNode,input, i13...index, s13)
+                      s0 << r13
+                      if r13
+                        if (match_len = has_terminal?(")", false, index))
+                          r17 = true
+                          @index += match_len
+                        else
+                          terminal_parse_failure('")"')
+                          r17 = nil
+                        end
+                        s0 << r17
+                      end
+                    end
+                  end
+                end
               end
-              s0 << r9
             end
           end
         end
@@ -1305,8 +1295,8 @@ module Configurator
     end
     if s0.last
       r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
-      r0.extend(CodecXor1)
       r0.extend(CodecXor2)
+      r0.extend(CodecXor3)
     else
       @index = i0
       r0 = nil
@@ -1989,6 +1979,13 @@ module Configurator
   end
 
   module Spl0
+    def loose_space1
+      elements[0]
+    end
+
+    def loose_space2
+      elements[2]
+    end
   end
 
   def _nt_spl
@@ -2003,66 +2000,20 @@ module Configurator
     end
 
     i0, s0 = index, []
-    s1, i1 = [], index
-    loop do
-      i2 = index
-      r3 = _nt_space
-      if r3
-        r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
-        r2 = r3
-      else
-        r4 = _nt_eol
-        if r4
-          r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
-          r2 = r4
-        else
-          @index = i2
-          r2 = nil
-        end
-      end
-      if r2
-        s1 << r2
-      else
-        break
-      end
-    end
-    r1 = instantiate_node(SyntaxNode,input, i1...index, s1)
+    r1 = _nt_loose_space
     s0 << r1
     if r1
       if (match_len = has_terminal?(";", false, index))
-        r5 = true
+        r2 = true
         @index += match_len
       else
         terminal_parse_failure('";"')
-        r5 = nil
+        r2 = nil
       end
-      s0 << r5
-      if r5
-        s6, i6 = [], index
-        loop do
-          i7 = index
-          r8 = _nt_space
-          if r8
-            r8 = SyntaxNode.new(input, (index-1)...index) if r8 == true
-            r7 = r8
-          else
-            r9 = _nt_eol
-            if r9
-              r9 = SyntaxNode.new(input, (index-1)...index) if r9 == true
-              r7 = r9
-            else
-              @index = i7
-              r7 = nil
-            end
-          end
-          if r7
-            s6 << r7
-          else
-            break
-          end
-        end
-        r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
-        s0 << r6
+      s0 << r2
+      if r2
+        r3 = _nt_loose_space
+        s0 << r3
       end
     end
     if s0.last
@@ -2074,6 +2025,47 @@ module Configurator
     end
 
     node_cache[:spl][start_index] = r0
+
+    r0
+  end
+
+  def _nt_loose_space
+    start_index = index
+    if node_cache[:loose_space].has_key?(index)
+      cached = node_cache[:loose_space][index]
+      if cached
+        node_cache[:loose_space][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    s0, i0 = [], index
+    loop do
+      i1 = index
+      r2 = _nt_space
+      if r2
+        r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
+        r1 = r2
+      else
+        r3 = _nt_eol
+        if r3
+          r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
+          r1 = r3
+        else
+          @index = i1
+          r1 = nil
+        end
+      end
+      if r1
+        s0 << r1
+      else
+        break
+      end
+    end
+    r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+
+    node_cache[:loose_space][start_index] = r0
 
     r0
   end

@@ -301,10 +301,11 @@ end
 class CodecXor < CodecComposite
     attr_reader :bkey_2_codec, :key_2_bkey, :nb_bit_binary_key
 
-    def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:)
+    def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:, prefix_keys:)
         super(key: key, statics: statics, comment: comment)
         @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
         @binary_keys = binary_keys
+        @prefix_keys = prefix_keys
         @max_type = 2 ** @nb_bit_binary_key
         @binary_keys.each do |k, bkey|
             raise "Binary key value #{bkey} exceeds maximum #{@max_type - 1}" if bkey >= @max_type
@@ -325,27 +326,41 @@ class CodecXor < CodecComposite
             codec = codecs.key_2_codec(key) || raise("Codec #{key} not found for adding binary key")
             add_codec(codec: codec, binary_key: binary_key)
         end
+        @prefix_codecs = @prefix_keys.collect do |prefix_key|
+            codec = codecs.key_2_codec(prefix_key) || raise("Codec #{prefix_key} not found for adding prefix key")
+            raise("Prefix codec #{prefix_key} must be CodecFixLength") unless codec.is_a?(CodecFixLength)
+            codec
+        end
     end
 
     def serialize(bit_stream, value , is_last: true)
-        raise "Expecting a hash with a single key among #{@option_keys}" unless value.is_a?(Hash) && value.size == 1
-        item_key = value.keys.first
-        item_value = value[item_key]
-        item_bkey = @key_2_bkey[item_key]
-        raise "Unknown option key #{item_key.inspect} for XOR serialization" if item_bkey.nil?
-        bit_stream.write_bits(item_bkey, @nb_bit_binary_key)
-        codec = @codecs.key_2_codec(item_key)
-        codec.serialize(bit_stream, item_value, is_last: is_last)
+        raise "Expecting a Hash for value" unless value.is_a?(Hash)
+        raise "Expecting the following key: #{@prefix_keys.join(', ')}" unless @prefix_keys.all? { |prefix_key| value.key?(prefix_key) }
+        xor_key = value.keys.find { |k| @option_keys.include?(k) }
+        raise "Expecting a key among #{@option_keys}" unless xor_key
+        
+        xor_value = value[xor_key]
+        xor_bkey = @key_2_bkey[xor_key]
+        raise "Unknown option key #{xor_key.inspect} for XOR serialization" if xor_bkey.nil?
+        bit_stream.write_bits(xor_bkey, @nb_bit_binary_key)
+
+        @prefix_codecs.each { |prefix_codec| prefix_codec.serialize(bit_stream, value[prefix_codec.key], is_last: false) }
+        xor_codec = @codecs.key_2_codec(item_key)
+        codec.serialize(bit_stream, xor_value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
-        item_bkey = bit_stream.read_bits(@nb_bit_binary_key)
-        item_codec = @bkey_2_codec[item_bkey]
-        { item_codec.key => item_codec.deserialize(bit_stream) }
+        xor_bkey = bit_stream.read_bits(@nb_bit_binary_key)
+        xor_codec = @bkey_2_codec[xor_key]
+        raise "Unknown binary key #{xor_bkey} during XOR deserialization" if xor_codec.nil?
+        h = {}
+        @prefix_codecs.each { |prefix_codec| h[prefix_codec.key] = prefix_codec.deserialize(bit_stream) }
+        h[xor_codec.key] = xor_codec.deserialize(bit_stream)
+        h
     end
 
     def to_s
-        "#{super} options=#{@option_keys.join(', ')}"
+        "#{super} options=#{@option_keys.join(', ')} prefixes=#{@prefix_keys.join(', ')}"
     end
 
     private
@@ -358,34 +373,28 @@ class CodecXor < CodecComposite
 end
 
 # List
-class CodecListXor < CodecComposite
-
-    def initialize(key:, key_xor:, statics: {}, comment: nil)
+class CodecList < CodecComposite
+    def initialize(key:, item_key:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
-        @key_xor = key_xor
+        @item_key = item_key
     end
 
     def post_initialize(codecs)
         super(codecs)
-        @xor_codec = @codecs.key_2_codec(@key_xor)
-        raise "XOR codec #{@key_xor} not found or not CodecXor for list #{@key}" if @xor_codec.nil? || !@xor_codec.is_a?(CodecXor)
-        @nb_bit_binary_key = @xor_codec.nb_bit_binary_key
-        @xor_codec.safe_for_list?
-        @nb_bit_marker = @nb_bit_binary_key
+        @item_codec = @codecs.key_2_codec(@item_key)
+        raise "Item codec #{@item_key} not found for list #{@key}" if @item_codec.nil?
+        @item_codec.safe_for_list?
+        @nb_bit_binary_key = @item_codec.nb_bit_binary_key
     end
 
-    # value is a list of value of xor
-    def serialize(bit_stream, keys_values, is_last: true)
-        expected_size = @prefix_codec ? 2 : 1
-        raise "Expecting an array of hashes value matching the xor definition" unless keys_values.is_a?(Array) && keys_values.all? { |item| item.is_a?(Hash) && item.size == expected_size }
-        @last_key_value = keys_values.last
-        keys_values.each do |key_value|
-            @prefix_codec.serialize(bit_stream, key_value[@prefix_codec.key], is_last: false) if @prefix_codec
-            xor_value = @prefix_codec ? key_value.reject { |k, _| k == @prefix_codec.key } : key_value
-            @xor_codec.serialize(bit_stream, xor_value, is_last: key_value == @last_key_value && is_last)
+    def serialize(bit_stream, item_values, is_last: true)
+        raise "Expecting an array value for list #{@key}" unless item_values.is_a?(Array)
+        last_index = item_values.size - 1
+        item_values.each_with_index do |item_value, index|
+            @item_codec.serialize(bit_stream, item_value, is_last: index == last_index && is_last)
         end
-        bit_stream.write_bits(0x0, @nb_bit_marker) unless is_last
-        super(bit_stream, keys_values, is_last: is_last)
+        bit_stream.write_bits(0x0, @nb_bit_binary_key) unless is_last
+        super(bit_stream, item_values, is_last: is_last)
     end
 
     def deserialize(bit_stream)
@@ -399,8 +408,6 @@ class CodecListXor < CodecComposite
         result
     end
 
-    protected
-
     def read_bkey(bit_stream, nb_bit:)
         begin
             bit_stream.read_bits(nb_bit)
@@ -408,44 +415,9 @@ class CodecListXor < CodecComposite
             0x0
         end
     end
-    
+
 end
 
-# List with prefix
-class CodecListXorWithPrefix < CodecListXor
-
-    def initialize(key:, key_prefix:, key_xor:, statics: {}, comment: nil)
-        super(key:, key_xor:, statics: statics, comment: comment)
-        @key_prefix = key_prefix
-    end
-
-    def post_initialize(codecs)
-        super(codecs)
-        @prefix_codec = @codecs.key_2_codec(@key_prefix)
-        raise "Prefix codec #{@key_prefix} not found or not CodexFixSize for list #{@key}" if @prefix_codec.nil? || !@prefix_codec.is_a?(CodecFixLength)
-        @nb_bit_prefix = @prefix_codec.instance_variable_get(:@nb_bit)
-        @nb_bit_marker = @nb_bit_prefix
-    end
-
-    # value is a list of value of xor
-    def serialize(bit_stream, keys_values, is_last: true)
-        raise "Expecting an array of hashes with a prefix key" unless keys_values.is_a?(Array) && keys_values.all? { |item| item.is_a?(Hash) && item[@prefix_codec.key] }
-        super(bit_stream, keys_values, is_last: is_last)
-    end
-
-    def deserialize(bit_stream)
-        result = []
-        while (prefix_value = read_bkey(bit_stream, nb_bit: @nb_bit_prefix)) != 0x0
-            bkey = read_bkey(bit_stream, nb_bit: @nb_bit_binary_key)
-            item_codec = @xor_codec.bkey_2_codec[bkey]
-            raise "Unknown binary key #{bkey} during list item deserialization" if item_codec.nil?
-            item_value = item_codec.deserialize(bit_stream)
-            result << { @prefix_codec.key => prefix_value, item_codec.key => item_value }
-        end
-        result
-    end
-    
-end
 
 class Codecs
 

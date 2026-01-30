@@ -53,7 +53,7 @@ grammar Configurator
   end
 
   rule codec
-    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor_with_prefix / codec_list_xor
+    codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
   end
 
   rule codec_boolean 
@@ -129,36 +129,26 @@ grammar Configurator
     }
   end
 
-  rule codec_list_xor
-    "LIST_XOR(" key_xor:key ")" {
+  rule codec_list
+    "LIST(" key ")" {
       def value
         {
-        codec_type: "CodecListXor", 
-        key_xor: key_xor.value, 
+        codec_type: "CodecList", 
+        item_key: key.value, 
         }
       end
     }
   end
 
-  rule codec_list_xor_with_prefix
-    "LIST_XOR(" key_prefix:key spl key_xor:key ")" {
-      def value
-        {
-        codec_type: "CodecListXorWithPrefix", 
-        key_xor: key_xor.value, 
-        key_prefix: key_prefix.value
-        }
-      end
-    }
-  end
 
   rule codec_xor
-    "XOR(" integer spl b:binary_key bs:(spl binary_key)* ")" {
+    "XOR(" integer spl "[" loose_space b:binary_key bs:(spl binary_key)* "]" loose_space ps:(spl key)* ")" {
       def value
         {
           codec_type: "CodecXor", 
           nb_bit_binary_key: integer.value,
           binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
+          prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
         }
       end
     }
@@ -244,7 +234,11 @@ grammar Configurator
 
   # list separator  
   rule spl
-    (space / eol)* ";" (space / eol)*
+    loose_space ";" loose_space
+  end
+
+  rule loose_space
+    (space / eol)*
   end
 
   rule space

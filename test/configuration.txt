@@ -1,11 +1,22 @@
-network_id INTEGER(16)
-add_child ALIAS(network_id) STATIC(priority=2)
-lost_child ALIAS(network_id) STATIC(priority=2)
-alarm SYMBOL(8;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall) STATIC(priority=1;need_acknowledgement)
-temperature FLOAT(8;0.0;200.0) STATIC(priority=3)
-server_fragment XOR(8;
-    0x01:add_child;
-    0x02:lost_child;
-    0x03:alarm;
-    0x04:temperature)
-server_signals LIST_XOR(network_id;server_fragment)
+nid INTEGER(16)
+timestamp INTEGER(48)
+too_many_reboot_alarm VOID
+too_many_resync_alarm VOID
+battery_indicator_alarm SYMBOL(8;low;critical)
+too_many_accelerometer_wake_up_alarm VOID 
+accelerometer_alarm SYMBOL(8;motion;freefall)
+add_child_nid ALIAS(nid)
+lost_child_nid ALIAS(nid)
+new_parent_nid ALIAS(nid)
+signal XOR(8;[
+    0x01:add_child_nid;
+    0x02:lost_child_nid;
+    0x03:new_parent_nid;
+    0x30:too_many_reboot_alarm;
+    0x31:too_many_resync_alarm;
+    0x32:battery_indicator_alarm;
+    0x33:too_many_accelerometer_wake_up_alarm;
+    0x34:accelerometer_alarm];
+    nid;timestamp)
+signals LIST(signal)
+
