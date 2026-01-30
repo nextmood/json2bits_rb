@@ -152,8 +152,8 @@ module Configurator
     def value
       parameters = { 
             key: key.value,
-            comment: (c.elements[0] ? c.elements[0].value : ""),
-            statics: (s.elements[0] ? s.elements[0].value : {}) 
+            comment: (c.text_value.empty? ? "" : c.value),
+            statics: (s.text_value.empty? ? {} : s.value)
         }
       parameters.merge!(codec.value)
       codec_type = parameters.delete(:codec_type)
@@ -190,28 +190,20 @@ module Configurator
           r5 = _nt_codec
           s0 << r5
           if r5
-            s6, i6 = [], index
-            loop do
-              r7 = _nt_statics
-              if r7
-                s6 << r7
-              else
-                break
-              end
+            r7 = _nt_statics
+            if r7
+              r6 = r7
+            else
+              r6 = instantiate_node(SyntaxNode,input, index...index)
             end
-            r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
             s0 << r6
             if r6
-              s8, i8 = [], index
-              loop do
-                r9 = _nt_comment
-                if r9
-                  s8 << r9
-                else
-                  break
-                end
+              r9 = _nt_comment
+              if r9
+                r8 = r9
+              else
+                r8 = instantiate_node(SyntaxNode,input, index...index)
               end
-              r8 = instantiate_node(SyntaxNode,input, i8...index, s8)
               s0 << r8
             end
           end
@@ -717,6 +709,10 @@ module Configurator
       elements[2]
     end
 
+    def spl
+      elements[3]
+    end
+
     def keys
       elements[4]
     end
@@ -762,13 +758,7 @@ module Configurator
         r3 = _nt_integer
         s0 << r3
         if r3
-          if (match_len = has_terminal?(";", false, index))
-            r4 = true
-            @index += match_len
-          else
-            terminal_parse_failure('";"')
-            r4 = nil
-          end
+          r4 = _nt_spl
           s0 << r4
           if r4
             r5 = _nt_keys
@@ -1130,6 +1120,10 @@ module Configurator
       elements[1]
     end
 
+    def spl
+      elements[2]
+    end
+
     def key_xor
       elements[3]
     end
@@ -1170,13 +1164,7 @@ module Configurator
       r2 = _nt_key
       s0 << r2
       if r2
-        if (match_len = has_terminal?(";", false, index))
-          r3 = true
-          @index += match_len
-        else
-          terminal_parse_failure('";"')
-          r3 = nil
-        end
+        r3 = _nt_spl
         s0 << r3
         if r3
           r4 = _nt_key
@@ -1209,6 +1197,10 @@ module Configurator
   end
 
   module CodecXor0
+    def spl
+      elements[0]
+    end
+
     def binary_key
       elements[1]
     end
@@ -1219,8 +1211,16 @@ module Configurator
       elements[1]
     end
 
-    def binary_keys
+    def spl
       elements[2]
+    end
+
+    def b
+      elements[3]
+    end
+
+    def bs
+      elements[4]
     end
 
   end
@@ -1230,7 +1230,7 @@ module Configurator
       {
         codec_type: "CodecXor", 
         nb_bit_binary_key: integer.value,
-        binary_keys: binary_keys.elements.inject({}) { |h, elt| h.merge!(elt.binary_key.value) }
+        binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
       }
     end
   end
@@ -1259,45 +1259,47 @@ module Configurator
       r2 = _nt_integer
       s0 << r2
       if r2
-        s3, i3 = [], index
-        loop do
-          i4, s4 = index, []
-          if (match_len = has_terminal?(";", false, index))
-            r5 = true
-            @index += match_len
-          else
-            terminal_parse_failure('";"')
-            r5 = nil
-          end
-          s4 << r5
-          if r5
-            r6 = _nt_binary_key
-            s4 << r6
-          end
-          if s4.last
-            r4 = instantiate_node(SyntaxNode,input, i4...index, s4)
-            r4.extend(CodecXor0)
-          else
-            @index = i4
-            r4 = nil
-          end
-          if r4
-            s3 << r4
-          else
-            break
-          end
-        end
-        r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
+        r3 = _nt_spl
         s0 << r3
         if r3
-          if (match_len = has_terminal?(")", false, index))
-            r7 = true
-            @index += match_len
-          else
-            terminal_parse_failure('")"')
-            r7 = nil
+          r4 = _nt_binary_key
+          s0 << r4
+          if r4
+            s5, i5 = [], index
+            loop do
+              i6, s6 = index, []
+              r7 = _nt_spl
+              s6 << r7
+              if r7
+                r8 = _nt_binary_key
+                s6 << r8
+              end
+              if s6.last
+                r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
+                r6.extend(CodecXor0)
+              else
+                @index = i6
+                r6 = nil
+              end
+              if r6
+                s5 << r6
+              else
+                break
+              end
+            end
+            r5 = instantiate_node(SyntaxNode,input, i5...index, s5)
+            s0 << r5
+            if r5
+              if (match_len = has_terminal?(")", false, index))
+                r9 = true
+                @index += match_len
+              else
+                terminal_parse_failure('")"')
+                r9 = nil
+              end
+              s0 << r9
+            end
           end
-          s0 << r7
         end
       end
     end
@@ -1384,7 +1386,7 @@ module Configurator
 
   module Keys2
     def value 
-        [f.value].concat(s.elements.map { |elt| elt.key.value })
+        s.elements.inject([f.value]) { |l, elt| l << elt.key.value }
     end
   end
 
@@ -1512,7 +1514,7 @@ module Configurator
 
     def value 
         k = key.value 
-        v = s.elements[0] ? s.elements[0].static_value.value : true
+        v = s.text_value.empty? ? true : s.static_value.value
         { k => v }
     end
   end
@@ -1532,35 +1534,31 @@ module Configurator
     r1 = _nt_key
     s0 << r1
     if r1
-      s2, i2 = [], index
-      loop do
-        i3, s3 = index, []
-        if (match_len = has_terminal?("=", false, index))
-          r4 = true
-          @index += match_len
-        else
-          terminal_parse_failure('"="')
-          r4 = nil
-        end
-        s3 << r4
-        if r4
-          r5 = _nt_static_value
-          s3 << r5
-        end
-        if s3.last
-          r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
-          r3.extend(StaticKeyValue0)
-        else
-          @index = i3
-          r3 = nil
-        end
-        if r3
-          s2 << r3
-        else
-          break
-        end
+      i3, s3 = index, []
+      if (match_len = has_terminal?("=", false, index))
+        r4 = true
+        @index += match_len
+      else
+        terminal_parse_failure('"="')
+        r4 = nil
       end
-      r2 = instantiate_node(SyntaxNode,input, i2...index, s2)
+      s3 << r4
+      if r4
+        r5 = _nt_static_value
+        s3 << r5
+      end
+      if s3.last
+        r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
+        r3.extend(StaticKeyValue0)
+      else
+        @index = i3
+        r3 = nil
+      end
+      if r3
+        r2 = r3
+      else
+        r2 = instantiate_node(SyntaxNode,input, index...index)
+      end
       s0 << r2
     end
     if s0.last
@@ -2005,30 +2003,66 @@ module Configurator
     end
 
     i0, s0 = index, []
-    r2 = _nt_space
-    if r2
-      r1 = r2
-    else
-      r1 = instantiate_node(SyntaxNode,input, index...index)
+    s1, i1 = [], index
+    loop do
+      i2 = index
+      r3 = _nt_space
+      if r3
+        r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
+        r2 = r3
+      else
+        r4 = _nt_eol
+        if r4
+          r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
+          r2 = r4
+        else
+          @index = i2
+          r2 = nil
+        end
+      end
+      if r2
+        s1 << r2
+      else
+        break
+      end
     end
+    r1 = instantiate_node(SyntaxNode,input, i1...index, s1)
     s0 << r1
     if r1
       if (match_len = has_terminal?(";", false, index))
-        r3 = true
+        r5 = true
         @index += match_len
       else
         terminal_parse_failure('";"')
-        r3 = nil
+        r5 = nil
       end
-      s0 << r3
-      if r3
-        r5 = _nt_space
-        if r5
-          r4 = r5
-        else
-          r4 = instantiate_node(SyntaxNode,input, index...index)
+      s0 << r5
+      if r5
+        s6, i6 = [], index
+        loop do
+          i7 = index
+          r8 = _nt_space
+          if r8
+            r8 = SyntaxNode.new(input, (index-1)...index) if r8 == true
+            r7 = r8
+          else
+            r9 = _nt_eol
+            if r9
+              r9 = SyntaxNode.new(input, (index-1)...index) if r9 == true
+              r7 = r9
+            else
+              @index = i7
+              r7 = nil
+            end
+          end
+          if r7
+            s6 << r7
+          else
+            break
+          end
         end
-        s0 << r4
+        r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
+        s0 << r6
       end
     end
     if s0.last
@@ -2057,12 +2091,32 @@ module Configurator
 
     s0, i0 = [], index
     loop do
+      i1 = index
       if (match_len = has_terminal?(' ', false, index))
-        r1 = true
+        r2 = true
         @index += match_len
       else
         terminal_parse_failure('\' \'')
-        r1 = nil
+        r2 = nil
+      end
+      if r2
+        r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
+        r1 = r2
+      else
+        if (match_len = has_terminal?("\t", false, index))
+          r3 = true
+          @index += match_len
+        else
+          terminal_parse_failure('"\\t"')
+          r3 = nil
+        end
+        if r3
+          r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
+          r1 = r3
+        else
+          @index = i1
+          r1 = nil
+        end
       end
       if r1
         s0 << r1

@@ -32,3 +32,25 @@ device_battery_level SEQUENCE(device_index;battery_level)
 server_fragment XOR(4;0x01:device_add_child;0x02:device_death;0x03:device_alarm;0x04:device_temperature;0x05:device_battery_level) // 4 is the number of bit to encode the list key
 server_message LIST_XOR(server_fragment) 
 
+nid INTEGER(16)
+timestamp BYTES(6)
+too_many_reboot_alarm VOID
+too_many_resync_alarm VOID
+battery_indicator_alarm SYMBOL(8;low;critical)
+too_many_accelerometer_wake_up_alarm VOID 
+accelerometer_alarm SYMBOL(8;motion;freefall)
+add_child_nid ALIAS(nid)
+lost_child_nid ALIAS(nid)
+new_parent_nid ALIAS(nid)
+signal_xor XOR(8;
+    0x01:add_child_nid;
+    0x02:lost_child_nid;
+    0x03:new_parent_nid;
+    0x30:too_many_reboot_alarm;
+    0x31:too_many_resync_alarm;
+    0x32:battery_indicator_alarm;
+    0x33:too_many_accelerometer_wake_up_alarm;
+    0x34:accelerometer_alarm
+)
+signals LIST_XOR(nid;timestamp;signal_xor)
+

@@ -30,12 +30,12 @@ grammar Configurator
   end  
 
   rule line
-    space? key space codec s:statics* c:comment* {
+    space? key space codec s:statics? c:comment? {
         def value
           parameters = { 
                 key: key.value,
-                comment: (c.elements[0] ? c.elements[0].value : ""),
-                statics: (s.elements[0] ? s.elements[0].value : {}) 
+                comment: (c.text_value.empty? ? "" : c.value),
+                statics: (s.text_value.empty? ? {} : s.value)
             }
           parameters.merge!(codec.value)
           codec_type = parameters.delete(:codec_type)
@@ -51,8 +51,6 @@ grammar Configurator
       end
     }
   end
-
-
 
   rule codec
     codec_boolean / codec_integer / codec_float / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list_xor_with_prefix / codec_list_xor
@@ -92,7 +90,7 @@ grammar Configurator
 
 
   rule codec_symbol 
-    "SYMBOL" "(" nb_bit:integer ";" keys ")" {
+    "SYMBOL" "(" nb_bit:integer spl keys ")" {
         def value
           {codec_type: "CodecSymbol", nb_bit: nb_bit.value, symbols: keys.value } 
         end
@@ -143,7 +141,7 @@ grammar Configurator
   end
 
   rule codec_list_xor_with_prefix
-    "LIST_XOR(" key_prefix:key ";" key_xor:key ")" {
+    "LIST_XOR(" key_prefix:key spl key_xor:key ")" {
       def value
         {
         codec_type: "CodecListXorWithPrefix", 
@@ -155,17 +153,17 @@ grammar Configurator
   end
 
   rule codec_xor
-    "XOR(" integer binary_keys:(";" binary_key)* ")" {
+    "XOR(" integer spl b:binary_key bs:(spl binary_key)* ")" {
       def value
         {
           codec_type: "CodecXor", 
           nb_bit_binary_key: integer.value,
-          binary_keys: binary_keys.elements.inject({}) { |h, elt| h.merge!(elt.binary_key.value) }
+          binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) }
         }
       end
     }
   end
-  
+
   rule key
     [a-zA-Z0-9_]+ { 
         def value 
@@ -177,7 +175,7 @@ grammar Configurator
   rule keys 
     f:key s:(spl key)* {
         def value 
-            [f.value].concat(s.elements.map { |elt| elt.key.value })
+            s.elements.inject([f.value]) { |l, elt| l << elt.key.value }
         end
     }
   end
@@ -187,10 +185,10 @@ grammar Configurator
   end
 
   rule static_key_value
-    key s:("=" static_value)* { 
+    key s:("=" static_value)? { 
         def value 
             k = key.value 
-            v = s.elements[0] ? s.elements[0].static_value.value : true
+            v = s.text_value.empty? ? true : s.static_value.value
             { k => v }
         end 
     }
@@ -246,11 +244,11 @@ grammar Configurator
 
   # list separator  
   rule spl
-    space? ";" space?
+    (space / eol)* ";" (space / eol)*
   end
 
   rule space
-    ' '+
+    (' ' / "\t")+
   end
   
   rule eol
