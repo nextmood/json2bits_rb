@@ -62,11 +62,14 @@ class CodecFixLength < Codec
         @nb_bit = nb_bit
     end
 
+    def eol_nb_bit = @nb_bit
+        
     def to_s
         "#{super} nb_bit=#{@nb_bit}"
     end
 end
 
+# Emits no payload (0 bits); useful as a marker or placeholder
 class CodecVoid < CodecFixLength
     def initialize(key:, statics: {}, comment: nil)
         super(key: key, nb_bit: 0, statics: statics, comment: comment)
@@ -77,6 +80,7 @@ class CodecVoid < CodecFixLength
     end
 end
 
+# Unsigned integer encoded on a fixed number of bits (1-64)
 class CodecInteger < CodecFixLength
     def initialize(key:, max_integer: nil, nb_bit: nil, statics: {}, comment: nil)
         nb_bit ||= Math.log2(max_integer + 1).ceil
@@ -96,6 +100,7 @@ class CodecInteger < CodecFixLength
     end
 end
 
+# Single-bit boolean (true/false)
 class CodecBoolean < CodecInteger
     def initialize(key:, statics: {}, comment: nil)
         super(key: key, max_integer: 1, nb_bit: 1, statics: statics, comment: comment)
@@ -113,6 +118,7 @@ class CodecBoolean < CodecInteger
     
 end
 
+# Encodes a symbol from a predefined list as its index
 class CodecSymbol < CodecInteger
     def initialize(key:, symbols:, nb_bit: nil, statics: {}, comment: nil)
         @symbols = symbols
@@ -132,6 +138,7 @@ class CodecSymbol < CodecInteger
     end
 end
 
+# Maps an integer range to a float interval [min, max]
 class CodecFloat < CodecInteger
     def initialize(key:, min_float:, max_float:, nb_bit:, statics: {}, comment: nil)
         @min_float = min_float
@@ -155,6 +162,7 @@ class CodecFloat < CodecInteger
     end
 end
 
+# Raw byte data of fixed length
 class CodecBytes < CodecFixLength
     def initialize(key:, nb_bytes:, statics: {}, comment: nil)
         super(key: key, nb_bit: nb_bytes * 8, statics: statics, comment: comment)
@@ -178,6 +186,7 @@ class CodecBytes < CodecFixLength
     end
 end
 
+# Hex string representation of byte data (e.g., "a1b2c3")
 class CodecHexa < CodecBytes
     def serialize(bit_stream, value, is_last: true)
         bytes = [value].pack("H*")
@@ -193,25 +202,31 @@ end
 class CodecComposite < Codec
 end
 
+# References another codec under a different name
 class CodecAlias < CodecComposite
     def initialize(key:, target_key:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
         @target_key = target_key
     end
 
+    def post_initialize(codecs)
+        super(codecs)
+        @target_codec = @codecs.key_2_codec(@target_key)
+        raise "Target codec #{@target_key} not found for alias #{@key}" if @target_codec.nil?
+    end
+
+    def eol_nb_bit = @target_codec.eol_nb_bit
+
     def serialize(bit_stream, value, is_last: true)
-        target_codec = @codecs.key_2_codec(@target_key)
-        raise "Target codec #{@target_key} not found for alias #{@key}" if target_codec.nil?
-        target_codec.serialize(bit_stream, value, is_last: is_last)
+        @target_codec.serialize(bit_stream, value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
-        target_codec = @codecs.key_2_codec(@target_key)
-        raise "Target codec #{@target_key} not found for alias #{@key}" if target_codec.nil?
-        target_codec.deserialize(bit_stream)
+        @target_codec.deserialize(bit_stream)
     end
 end
 
+# Variable-length integer that selects the smallest segment able to hold the value
 class CodecIntegerLong < CodecComposite
     def initialize(key:, bits_segement:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
@@ -242,6 +257,7 @@ class CodecIntegerLong < CodecComposite
 
 end
 
+# Concatenates multiple codecs in order
 class CodecSequence < CodecComposite
     def initialize(key:, keys:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
@@ -269,6 +285,7 @@ class CodecSequence < CodecComposite
     end
 end
 
+# Homogeneous array with length prefix
 class CodecArray < CodecComposite
     def initialize(key:, item_key:, nb_item_max: nil, nb_bit: nil, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
@@ -298,8 +315,9 @@ class CodecArray < CodecComposite
     end
 end
 
+# One-of choice between codecs, selected by a binary key prefix
 class CodecXor < CodecComposite
-    attr_reader :bkey_2_codec, :key_2_bkey, :nb_bit_binary_key
+    attr_reader :bkey_2_codec, :key_2_bkey
 
     def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:, prefix_keys: [])
         super(key: key, statics: statics, comment: comment)
@@ -315,6 +333,8 @@ class CodecXor < CodecComposite
         @key_2_bkey = {}
     end
 
+    def eol_nb_bit = @nb_bit_binary_key
+        
     def safe_for_list?
         raise "The binary value 0x0 is not allowed for list" if @bkey_2_codec[0x0]
     end
@@ -372,7 +392,7 @@ class CodecXor < CodecComposite
 
 end
 
-# List
+# Heterogeneous list using a XOR codec; uses 0x00 as end-of-list terminator
 class CodecList < CodecComposite
     def initialize(key:, item_key:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
@@ -384,7 +404,7 @@ class CodecList < CodecComposite
         @item_codec = @codecs.key_2_codec(@item_key)
         raise "Item codec #{@item_key} not found for list #{@key}" if @item_codec.nil?
         @item_codec.safe_for_list?
-        @nb_bit_binary_key = @item_codec.nb_bit_binary_key
+        @eol_nb_bit = @item_codec.eol_nb_bit
     end
 
     def serialize(bit_stream, item_values, is_last: true)
@@ -393,7 +413,7 @@ class CodecList < CodecComposite
         item_values.each_with_index do |item_value, index|
             @item_codec.serialize(bit_stream, item_value, is_last: index == last_index && is_last)
         end
-        bit_stream.write_bits(0x0, @nb_bit_binary_key) unless is_last
+        bit_stream.write_bits(0x0, @eol_nb_bit) unless is_last
         super(bit_stream, item_values, is_last: is_last)
     end
 
@@ -407,13 +427,13 @@ class CodecList < CodecComposite
 
     def is_end_of_list?(bit_stream)
         value = begin
-            bit_stream.read_bits(@nb_bit_binary_key, dry_run: true)
+            bit_stream.read_bits(@eol_nb_bit, dry_run: true)
         rescue Json2Bits::NoMoreBitsError
             return true  # No more bits, end of list
         end
 
         if value == 0x0
-            bit_stream.read_bits(@nb_bit_binary_key)  # Consume the terminator
+            bit_stream.read_bits(@eol_nb_bit)  # Consume the terminator
             true
         else
             false

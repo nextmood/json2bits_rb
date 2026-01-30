@@ -36,20 +36,14 @@ class ConfiguratorTest < Minitest::Test
     assert parsed.value
     assert parsed = @parser.parse("battery_level_value FLOAT(4;0.0;100.0) \n")
     assert parsed.value
-    assert parsed = @parser.parse("device_index_origin ALIAS(device_index)\n")
+    assert parsed = @parser.parse("device_index INTEGER(4)\ndevice_index_origin ALIAS(device_index)\n")
     assert parsed.value
     assert parsed = @parser.parse("child_added SEQUENCE(device_index_origin;device_index;mac_address)\n")
     assert parsed.value
-    assert parsed = @parser.parse("device_death ALIAS(device_index)\n")
+    assert parsed = @parser.parse("device_index INTEGER(4)\ndevice_death ALIAS(device_index)\n")
     assert parsed.value
-    assert parsed = @parser.parse("alarm SEQUENCE(device_index_origin;alarm_type)\n")
+    assert parsed = @parser.parse("device_index_origin INTEGER(4)\nalarm_type SYMBOL(4;too_many_reboot;too_many_resync)\nalarm SEQUENCE(device_index_origin;alarm_type)\n")
     assert parsed.value
-    assert parsed = @parser.parse("temperature SEQUENCE(device_index_origin;temperature_value)\n")
-    assert parsed.value
-    assert parsed = @parser.parse("battery_level SEQUENCE(device_index_origin;battery_level_value)\n")
-    assert parsed.value
-    assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\n")
-    assert parsed.value    
     assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\nmeasurement XOR(2;[0x01:device_index;0x02:temperature])\n")
     assert parsed.value
   end
