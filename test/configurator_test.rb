@@ -105,8 +105,8 @@ class ConfiguratorTest < Minitest::Test
     assert parsed = @parser.parse(configuration)
     codecs = parsed.value
     assert codecs.is_a?(Codecs)
-    assert_equal 12, codecs.dictionnary.size
-    assert_equal ["nid", "timestamp", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "signal", "signals"], codecs.dictionnary.keys
+    assert_equal 18, codecs.dictionnary.size
+    assert_equal ["nid", "timestamp", "acknowledgement", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "temperature", "repeat_nb_time", "repeat_delay", "repeat_cmd", "set_temperature", "signal", "signals"], codecs.dictionnary.keys
 
     codec_signal = codecs.key_2_codec("signal")
     assert codec_signal.is_a?(CodecXor)

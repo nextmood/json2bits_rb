@@ -1,5 +1,6 @@
 nid INTEGER(16)
 timestamp BYTES(6)
+acknowledgement VOID
 too_many_reboot_alarm VOID STATIC(ack_required)
 too_many_resync_alarm VOID STATIC(ack_required)
 battery_indicator_alarm SYMBOL(8;low;critical) STATIC(ack_required)
@@ -8,15 +9,22 @@ accelerometer_alarm SYMBOL(8;motion;freefall) STATIC(ack_required)
 add_child_nid ALIAS(nid)
 lost_child_nid ALIAS(nid)
 new_parent_nid ALIAS(nid)
+temperature FLOAT(8;-20.0;60.0)
+repeat_nb_time INTEGER(8)
+repeat_delay INTEGER(8)
+repeat_cmd SEQUENCE(repeat_nb_time;repeat_delay)
+set_temperature ALIAS(repeat_cmd)
 signal XOR(8;[
-    0x01:add_child_nid;
-    0x02:lost_child_nid;
-    0x03:new_parent_nid;
-    0x30:too_many_reboot_alarm;
-    0x31:too_many_resync_alarm;
-    0x32:battery_indicator_alarm;
-    0x33:too_many_accelerometer_wake_up_alarm;
-    0x34:accelerometer_alarm];
+        0x01:add_child_nid;
+        0x02:lost_child_nid;
+        0x03:new_parent_nid;
+        0x30:too_many_reboot_alarm;
+        0x31:too_many_resync_alarm;
+        0x32:battery_indicator_alarm;
+        0x33:too_many_accelerometer_wake_up_alarm;
+        0x34:accelerometer_alarm;
+        0x40:set_temperature;
+        0x66:acknowledgement];
     nid;timestamp)
 signals LIST(signal)
 
