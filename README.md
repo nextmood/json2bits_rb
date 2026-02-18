@@ -111,6 +111,34 @@ Each line of the configuration describes one codec:
 | `XOR` | `XOR(nb_bit_binary_key;[0xNN:key1;0xNN:key2;...])` | One-of choice between the given codecs, selected on `nb_bit_binary_key` bits. |
 | `LIST` | `LIST(xor_key)` | Heterogeneous list using a named `XOR` codec. Appends a `0x00` terminator when not the last element in a sequence. |
 
+### DATETIME example
+
+`DATETIME` encodes a Ruby `Time` as 6 little-endian bytes of milliseconds since 2000-01-01 00:00:00 UTC, making it compact and firmware-friendly.
+
+```ruby
+config = <<~CFG
+  nid       INTEGER(16)
+  timestamp DATETIME
+  signal    SEQUENCE(nid;timestamp)
+CFG
+
+parser = ConfiguratorParser.new
+codecs = parser.parse(config).value
+
+signal = codecs.key_2_codec("signal")
+
+payload = { "nid" => 42, "timestamp" => Time.utc(2026, 2, 10, 13, 42, 4, 743_000) }
+
+bytes   = signal.serialize_to_bytes(payload)
+# => [0x00, 0x2a, 0xc7, 0xfe, 0xf9, 0xdc, 0xbf, 0x00]
+#     |nid=42|  timestamp = 2026-02-10 13:42:04.743 UTC (little-endian 48-bit ms)
+
+decoded = signal.deserialize_from_bytes(bytes)
+# => {"nid"=>42, "timestamp"=>2026-02-10 13:42:04.743000000 UTC}
+```
+
+Timestamps before 2000-01-01 UTC are not supported. Sub-millisecond precision is truncated (not rounded).
+
 ### Static metadata
 
 You can attach arbitrary metadata to any codec using the `STATIC` clause:
