@@ -117,7 +117,7 @@ class CodexDateTime < CodecFixLength
 
     def deserialize(bit_stream)
         ms = 6.times.reduce(0) { |acc, i| acc | (bit_stream.read_bits(8) << (8 * i)) }
-        Time.at((ms + Y2K_EPOCH_MS) / 1000.0).utc
+        Time.at(Rational(ms + Y2K_EPOCH_MS, 1000)).utc
     end
 end
 

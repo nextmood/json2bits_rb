@@ -358,58 +358,64 @@ module Configurator
         r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
         r0 = r2
       else
-        r3 = _nt_codec_float
+        r3 = _nt_codec_datetime
         if r3
           r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
           r0 = r3
         else
-          r4 = _nt_codec_bytes
+          r4 = _nt_codec_float
           if r4
             r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
             r0 = r4
           else
-            r5 = _nt_codec_hexa
+            r5 = _nt_codec_bytes
             if r5
               r5 = SyntaxNode.new(input, (index-1)...index) if r5 == true
               r0 = r5
             else
-              r6 = _nt_codec_symbol
+              r6 = _nt_codec_hexa
               if r6
                 r6 = SyntaxNode.new(input, (index-1)...index) if r6 == true
                 r0 = r6
               else
-                r7 = _nt_codec_void
+                r7 = _nt_codec_symbol
                 if r7
                   r7 = SyntaxNode.new(input, (index-1)...index) if r7 == true
                   r0 = r7
                 else
-                  r8 = _nt_codec_sequence
+                  r8 = _nt_codec_void
                   if r8
                     r8 = SyntaxNode.new(input, (index-1)...index) if r8 == true
                     r0 = r8
                   else
-                    r9 = _nt_codec_alias
+                    r9 = _nt_codec_sequence
                     if r9
                       r9 = SyntaxNode.new(input, (index-1)...index) if r9 == true
                       r0 = r9
                     else
-                      r10 = _nt_codec_array
+                      r10 = _nt_codec_alias
                       if r10
                         r10 = SyntaxNode.new(input, (index-1)...index) if r10 == true
                         r0 = r10
                       else
-                        r11 = _nt_codec_xor
+                        r11 = _nt_codec_array
                         if r11
                           r11 = SyntaxNode.new(input, (index-1)...index) if r11 == true
                           r0 = r11
                         else
-                          r12 = _nt_codec_list
+                          r12 = _nt_codec_xor
                           if r12
                             r12 = SyntaxNode.new(input, (index-1)...index) if r12 == true
                             r0 = r12
                           else
-                            @index = i0
-                            r0 = nil
+                            r13 = _nt_codec_list
+                            if r13
+                              r13 = SyntaxNode.new(input, (index-1)...index) if r13 == true
+                              r0 = r13
+                            else
+                              @index = i0
+                              r0 = nil
+                            end
                           end
                         end
                       end
@@ -862,9 +868,40 @@ module Configurator
     r0
   end
 
+  module CodecDatetime0
+    def value
+      {codec_type: "CodexDateTime"}
+    end
+  end
+
+  def _nt_codec_datetime
+    start_index = index
+    if node_cache[:codec_datetime].has_key?(index)
+      cached = node_cache[:codec_datetime][index]
+      if cached
+        node_cache[:codec_datetime][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    if (match_len = has_terminal?("DATETIME", false, index))
+      r0 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+      r0.extend(CodecDatetime0)
+      @index += match_len
+    else
+      terminal_parse_failure('"DATETIME"')
+      r0 = nil
+    end
+
+    node_cache[:codec_datetime][start_index] = r0
+
+    r0
+  end
+
   module CodecVoid0
     def value
-      {codec_type: "CodecVoid" } 
+      {codec_type: "CodecVoid" }
     end
   end
 

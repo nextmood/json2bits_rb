@@ -119,12 +119,13 @@ class ConfiguratorTest < Minitest::Test
     assert codec_too_many_reboot_alarm.statics["ack_required"]
 
     # serialize and deserialize a simple list of signals
-    input_ori = [{"nid" => 45, "timestamp" => "\xF9\xFA\xFB\xFC\xFD\xFE".b, "add_child_nid" => 12}]
+    ts = Time.utc(2026, 2, 10, 13, 42, 4, 743_000)
+    input_ori = [{"nid" => 45, "timestamp" => ts, "add_child_nid" => 12}]
     writer = BitStream.new
     codec_signals.serialize(writer, input_ori)
 
     assert_equal  (8 + 16 + 48) + (16), writer.nb_bits_written
-    assert_equal writer.bytes, [0x01, 0x00, 0x2d, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0x00, 0x0C]
+    assert_equal [0x01, 0x00, 0x2d, 0xc7, 0xfe, 0xf9, 0xdc, 0xbf, 0x00, 0x00, 0x0c], writer.bytes
 
     reader = BitStream.new(bytes: writer.bytes.dup)
     input_bis = codec_signals.deserialize(reader)

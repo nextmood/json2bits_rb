@@ -104,10 +104,18 @@ grammar Configurator
     }
   end
 
-  rule codec_void 
+  rule codec_datetime
+    "DATETIME" {
+        def value
+          {codec_type: "CodexDateTime"}
+        end
+    }
+  end
+
+  rule codec_void
     "VOID" {
         def value
-          {codec_type: "CodecVoid" } 
+          {codec_type: "CodecVoid" }
         end
     }
   end
