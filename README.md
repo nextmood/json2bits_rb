@@ -103,6 +103,7 @@ Each line of the configuration describes one codec:
 | `BYTES` | `BYTES(nb_bytes)` | Raw byte data of fixed length. |
 | `HEXA` | `HEXA(nb_bytes)` | Hex string backed by `nb_bytes` of data. |
 | `SYMBOL` | `SYMBOL(nb_bit;v1;v2;...)` | Encodes the index of the symbol list on `nb_bit` bits. |
+| `DATETIME` | `DATETIME` | UTC timestamp encoded as a 48-bit little-endian unsigned integer of milliseconds since 2000-01-01 00:00:00 UTC. Accepts a Ruby `Time` object; deserializes to a UTC `Time` with millisecond precision. |
 | `VOID` | `VOID` | Emits no payload; useful as a marker. |
 | `SEQUENCE` | `SEQUENCE(key1;key2;...)` | Concatenates several codecs in order. |
 | `ALIAS` | `ALIAS(target_key)` | Reuses another codec under a different name. |
