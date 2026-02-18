@@ -22,7 +22,7 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 **BitStream** (`lib/json2bits/bit_stream.rb`) - Low-level bit manipulation for reading/writing bits across byte boundaries in MSB order.
 
 **Codec Hierarchy** (`lib/json2bits/codecs.rb`) - All serialization codecs inherit from base `Codec` class:
-- `CodecFixLength` - Fixed-size codecs: `CodecVoid`, `CodecInteger`, `CodecBoolean`, `CodecSymbol`, `CodecFloat`, `CodecBytes`, `CodecHexa`
+- `CodecFixLength` - Fixed-size codecs: `CodecVoid`, `CodecInteger`, `CodecBoolean`, `CodecSymbol`, `CodecFloat`, `CodecBytes`, `CodecHexa`, `CodexDateTime`
 - `CodecComposite` - Variable/composite codecs: `CodecAlias`, `CodecIntegerLong`, `CodecSequence`, `CodecArray`, `CodecXor`, `CodecList`
 
 **Codecs Manager** (`lib/json2bits/codecs.rb`) - Registry that holds all codec instances and resolves references between them.
@@ -54,6 +54,7 @@ Available codecs:
 - `BYTES(nb_bytes)` - Raw byte data of fixed length
 - `HEXA(nb_bytes)` - Hexadecimal string
 - `SYMBOL(nb_bit;v1;v2;...)` - Symbol enum
+- `DATETIME` - UTC timestamp, 48-bit little-endian milliseconds since 2000-01-01 00:00:00 UTC
 - `VOID` - No payload
 - `SEQUENCE(k1;k2;...)` - Concatenate codecs
 - `ALIAS(target_key)` - Reference another codec

@@ -175,6 +175,32 @@ class CodecsTest < Minitest::Test
     
   end
 
+  def test_datetime_codec_serialize_known_bytes
+    codec = @codecs.add_codec(CodexDateTime.new(key: :ts))
+
+    # Y2K epoch = all zeros
+    assert_equal [0x00,0x00,0x00,0x00,0x00,0x00], codec.serialize_to_bytes(Time.utc(2000, 1, 1, 0, 0, 0))
+    # +1 ms  [2000-01-01|00:00:00.001]
+    assert_equal [0x01,0x00,0x00,0x00,0x00,0x00], codec.serialize_to_bytes(Time.utc(2000, 1, 1, 0, 0, 0, 1_000))
+    # +1 min  [2000-01-01|00:01:00.000]
+    assert_equal [0x60,0xea,0x00,0x00,0x00,0x00], codec.serialize_to_bytes(Time.utc(2000, 1, 1, 0, 1, 0))
+    # +1 hour  [2000-01-01|01:00:00.000]
+    assert_equal [0x80,0xee,0x36,0x00,0x00,0x00], codec.serialize_to_bytes(Time.utc(2000, 1, 1, 1, 0, 0))
+    # +1 day  [2000-01-02|00:00:00.000]
+    assert_equal [0x00,0x5c,0x26,0x05,0x00,0x00], codec.serialize_to_bytes(Time.utc(2000, 1, 2, 0, 0, 0))
+    # specific timestamp  [2026-02-10|13:42:04.743]
+    assert_equal [0xc7,0xfe,0xf9,0xdc,0xbf,0x00], codec.serialize_to_bytes(Time.utc(2026, 2, 10, 13, 42, 4, 743_000))
+  end
+
+  def test_datetime_codec_round_trip
+    codec = @codecs.add_codec(CodexDateTime.new(key: :ts2))
+    t = Time.utc(2026, 2, 10, 13, 42, 4, 743_000)
+    result = round_trip(codec, t)
+    # Round-trip is exact to the millisecond
+    assert_equal t.to_i * 1000 + t.usec / 1000, result.to_i * 1000 + result.usec / 1000
+    assert_equal 48, codec.serialize_to_bytes(t, compute_nb_bit: true)[1]
+  end
+
   private
 
   def round_trip(codec, value)

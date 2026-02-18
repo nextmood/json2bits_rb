@@ -100,6 +100,27 @@ class CodecInteger < CodecFixLength
     end
 end
 
+class CodexDateTime < CodecFixLength
+    # Milliseconds between Unix epoch (1970-01-01) and Y2K epoch (2000-01-01 UTC)
+    Y2K_EPOCH_MS = 946_684_800_000
+
+    def initialize(key:, statics: {}, comment: nil)
+        # 48 bits can encode up to ~34.8 years from Y2K epoch in milliseconds
+        super(key: key, nb_bit: 48, statics: statics, comment: comment)
+    end
+
+    def serialize(bit_stream, value, is_last: true)
+        ms = value.to_i * 1000 + value.usec / 1000 - Y2K_EPOCH_MS
+        6.times { |i| bit_stream.write_bits((ms >> (8 * i)) & 0xFF, 8) }
+        bit_stream
+    end
+
+    def deserialize(bit_stream)
+        ms = 6.times.reduce(0) { |acc, i| acc | (bit_stream.read_bits(8) << (8 * i)) }
+        Time.at((ms + Y2K_EPOCH_MS) / 1000.0).utc
+    end
+end
+
 # Single-bit boolean (true/false)
 class CodecBoolean < CodecInteger
     def initialize(key:, statics: {}, comment: nil)

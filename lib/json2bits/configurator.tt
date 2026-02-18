@@ -53,7 +53,7 @@ grammar Configurator
   end
 
   rule codec
-    codec_boolean / codec_integer / codec_float / codec_bytes / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
+    codec_boolean / codec_integer / codec_datetime / codec_float / codec_bytes / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
   end
 
   rule codec_boolean 

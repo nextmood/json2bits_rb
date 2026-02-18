@@ -1,5 +1,5 @@
 nid INTEGER(16)
-timestamp BYTES(6)
+timestamp DATETIME
 acknowledgement VOID
 too_many_reboot_alarm VOID STATIC(ack_required)
 too_many_resync_alarm VOID STATIC(ack_required)
