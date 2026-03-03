@@ -1,3 +1,5 @@
+require 'time'
+
 class Codec
     attr_reader :key, :codecs, :statics, :comment
 
@@ -110,6 +112,7 @@ class CodexDateTime < CodecFixLength
     end
 
     def serialize(bit_stream, value, is_last: true)
+        value = Time.parse(value) if value.is_a?(String)
         ms = value.to_i * 1000 + value.usec / 1000 - Y2K_EPOCH_MS
         6.times { |i| bit_stream.write_bits((ms >> (8 * i)) & 0xFF, 8) }
         bit_stream

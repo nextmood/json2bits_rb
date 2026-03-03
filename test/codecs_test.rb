@@ -249,6 +249,14 @@ class CodecsTest < Minitest::Test
                     bytes_last.each_with_index.sum  { |b, i| b << (8 * i) }
   end
 
+  def test_datetime_codec_serialize_string_input
+    codec = @codecs.add_codec(CodexDateTime.new(key: :ts))
+
+    # String input must produce the same bytes as the equivalent Time object
+    assert_equal codec.serialize_to_bytes(Time.utc(2026, 2, 10, 13, 42, 4)),
+                 codec.serialize_to_bytes("2026-02-10T13:42:04Z")
+  end
+
   private
 
   def round_trip(codec, value)
