@@ -59,7 +59,7 @@ CFG
 
 parser = ConfiguratorParser.new
 ast = parser.parse(config) or raise Json2Bits::ConfigurationError, parser.failure_reason
-codecs = ast.value
+statics, codecs = ast.value.values_at(:statics, :codecs)
 
 # Keys coming from the parser are strings
 measurements = codecs.key_2_codec("measurements")
@@ -138,6 +138,35 @@ decoded = signal.deserialize_from_bytes(bytes)
 ```
 
 Timestamps before 2000-01-01 UTC are not supported. Sub-millisecond precision is truncated (not rounded).
+
+### Global configuration
+
+A `STATIC(...)` clause at the very first line of a configuration file sets global options that apply to all codecs in that file.
+
+#### Integer byte order (`endian`)
+
+Controls the byte order used by `INTEGER` (and all subclasses: `FLOAT`, `SYMBOL`) when the field is **wider than 8 bits**. Fields of 8 bits or fewer are unaffected — a single byte has no byte order.
+
+| Value | Meaning |
+| --- | --- |
+| `big` | Most-significant byte first (default) |
+| `little` | Least-significant byte first |
+
+```
+STATIC(endian=little)
+nid     INTEGER(16)   // serialized LSB first: 0x0042 → [0x42, 0x00]
+offset  INTEGER(12)   // 8 low bits first, then 4 high bits
+```
+
+When using the Ruby API directly, pass the option to `Codecs.new`:
+
+```ruby
+codecs = Codecs.new(globals: {"endian" => "little"})
+codec  = codecs.add_codec(CodecInteger.new(key: :nid, nb_bit: 16))
+codec.serialize_to_bytes(0x1234) # => [0x34, 0x12]
+```
+
+Note: `DATETIME` is always little-endian by design and is not affected by this setting.
 
 ### Static metadata
 

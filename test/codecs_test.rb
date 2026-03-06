@@ -113,7 +113,7 @@ class CodecsTest < Minitest::Test
     assert_equal({:device_index_long => 879}, round_trip(codec, {:device_index_long => 879}))
   end
 
-  def test_list_codec_round_trip_with_no_terminator
+  def test_list_codec_round_trip_no_terminator
 
     temperature_codec = @codecs.add_codec(CodecInteger.new(key: :temperature, nb_bit: 6))
     humidity_codec = @codecs.add_codec(CodecInteger.new(key: :humidity, nb_bit: 6))
@@ -137,7 +137,7 @@ class CodecsTest < Minitest::Test
     assert_equal input, codec.deserialize(reader)
   end
 
-  def test_list_codec_round_trip_with_terminator
+  def test_list_codec_round_trip_terminator
 
     speed_codec = @codecs.add_codec(CodecInteger.new(key: :speed, nb_bit: 5))
     temperature_codec = @codecs.add_codec(CodecInteger.new(key: :temperature, nb_bit: 6))
@@ -257,10 +257,66 @@ class CodecsTest < Minitest::Test
                  codec.serialize_to_bytes("2026-02-10T13:42:04Z")
   end
 
+  def test_integer_encoding_default_is_big_endian
+    assert_equal false, @codecs.integer_encoding_little_endian?
+  end
+
+  def test_integer_big_endian_byte_order
+    codec = @codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 16))
+    assert_equal [0x12, 0x34], codec.serialize_to_bytes(0x1234)
+  end
+
+  def test_integer_little_endian_byte_order
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 16))
+    assert_equal [0x34, 0x12], codec.serialize_to_bytes(0x1234)
+  end
+
+  def test_integer_little_endian_round_trip_16bit
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 16))
+    assert_equal 0xABCD, round_trip(codec, 0xABCD)
+  end
+
+  def test_integer_little_endian_round_trip_24bit
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 24))
+    assert_equal 0x123456, round_trip(codec, 0x123456)
+  end
+
+  def test_integer_little_endian_non_multiple_of_8
+    # INTEGER(12): low byte (8 bits) first, then high nibble (4 bits)
+    # 0xABC = 0b1010_1011_1100 → first byte 0xBC, then nibble 0xA
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 12))
+    bytes = codec.serialize_to_bytes(0xABC)
+    assert_equal 0xBC, bytes[0]
+    assert_equal 0xA0, bytes[1] & 0xF0  # high nibble of second byte
+    assert_equal 0xABC, round_trip(codec, 0xABC)
+  end
+
+  def test_integer_little_endian_8bit_unaffected
+    # <= 8 bits: endianness does not apply, behaviour identical to big-endian
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 8))
+    assert_equal [0xAB], codec.serialize_to_bytes(0xAB)
+  end
+
+  def test_integer_little_endian_parser_integration
+    config = "STATIC(endian=little)\nnid INTEGER(16)\n"
+    parsed = ConfiguratorParser.new.parse(config)
+    assert parsed, "config should parse"
+    codecs = parsed.value
+    assert codecs.integer_encoding_little_endian?
+    codec = codecs.key_2_codec("nid")
+    assert_equal [0x34, 0x12], codec.serialize_to_bytes(0x1234)
+  end
+
   private
 
   def round_trip(codec, value)
     bytes = codec.serialize_to_bytes(value)
     codec.deserialize_from_bytes(bytes.dup)
   end
+
 end

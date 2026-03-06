@@ -1,3 +1,4 @@
+STATIC(endian=big) // big|little
 nid INTEGER(16)
 timestamp DATETIME
 acknowledgement VOID

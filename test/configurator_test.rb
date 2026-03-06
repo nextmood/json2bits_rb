@@ -14,43 +14,43 @@ class ConfiguratorTest < Minitest::Test
   end
 
   def test_it_should_parse_data_fragment_definitions
-    assert parsed = @parser.parse("device_index INTEGER(4)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_index INTEGER(4)\n")
     assert parsed.value
-    assert parsed = @parser.parse("device_index INTEGER(4) // either 4, 8, 12 or 16 bits depending on the configuration\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_index INTEGER(4) // either 4, 8, 12 or 16 bits depending on the configuration\n")
     assert parsed.value
-    assert parsed = @parser.parse("mac_address HEXA(6)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nmac_address HEXA(6)\n")
     assert parsed.value
-    assert parsed = @parser.parse("child_added SEQUENCE(device_index;mac_address)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nchild_added SEQUENCE(device_index;mac_address)\n")
     assert parsed.value
-    assert parsed = @parser.parse("child_added SEQUENCE(device_index;mac_address)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nchild_added SEQUENCE(device_index;mac_address)\n")
     assert parsed.value
-    assert parsed = @parser.parse("device_death VOID\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_death VOID\n")
     assert parsed.value
-    assert parsed = @parser.parse("alarm SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nalarm SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)\n")
     assert parsed.value
-    assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;5.0;200.0)\n")
     assert parsed.value
-    assert parsed = @parser.parse("alarm_type SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nalarm_type SYMBOL(4;too_many_reboot;too_many_resync;battery_low;battery_critical;too_many_accelerometer_wake_up;accelerometer_has_detected_motion;accelerometer_has_detected_freefall)\n")
     assert parsed.value
-    assert parsed = @parser.parse("temperature_value FLOAT(4;5.0;200.0)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ntemperature_value FLOAT(4;5.0;200.0)\n")
     assert parsed.value
-    assert parsed = @parser.parse("battery_level_value FLOAT(4;0.0;100.0) \n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nbattery_level_value FLOAT(4;0.0;100.0) \n")
     assert parsed.value
-    assert parsed = @parser.parse("device_index INTEGER(4)\ndevice_index_origin ALIAS(device_index)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_index INTEGER(4)\ndevice_index_origin ALIAS(device_index)\n")
     assert parsed.value
-    assert parsed = @parser.parse("child_added SEQUENCE(device_index_origin;device_index;mac_address)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\nchild_added SEQUENCE(device_index_origin;device_index;mac_address)\n")
     assert parsed.value
-    assert parsed = @parser.parse("device_index INTEGER(4)\ndevice_death ALIAS(device_index)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_index INTEGER(4)\ndevice_death ALIAS(device_index)\n")
     assert parsed.value
-    assert parsed = @parser.parse("device_index_origin INTEGER(4)\nalarm_type SYMBOL(4;too_many_reboot;too_many_resync)\nalarm SEQUENCE(device_index_origin;alarm_type)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ndevice_index_origin INTEGER(4)\nalarm_type SYMBOL(4;too_many_reboot;too_many_resync)\nalarm SEQUENCE(device_index_origin;alarm_type)\n")
     assert parsed.value
-    assert parsed = @parser.parse("temperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\nmeasurement XOR(2;[0x01:device_index;0x02:temperature])\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;5.0;200.0)\ndevice_index INTEGER(4)\nmeasurement XOR(2;[0x01:device_index;0x02:temperature])\n")
     assert parsed.value
   end
 
   def test_it_should_parse_a_composite_sequence
     assert parsed = @parser.parse(
-      "speed INTEGER(7)
+      "STATIC(endian=big)\nspeed INTEGER(7)
        altitude INTEGER(15)
        position SEQUENCE(speed;altitude)\n")
     codecs = parsed.value
@@ -63,7 +63,7 @@ class ConfiguratorTest < Minitest::Test
 
   def test_it_should_parse_a_composite_xor
     assert parsed = @parser.parse(
-      "device_index_short INTEGER(7)
+      "STATIC(endian=big)\ndevice_index_short INTEGER(7)
        device_index_long INTEGER(15)
        device_index XOR(1;[0x00:device_index_short;0x01:device_index_long])\n")
 
@@ -79,7 +79,7 @@ class ConfiguratorTest < Minitest::Test
 
   def test_it_should_parse_a_list
     assert parsed = @parser.parse(
-      "device_index INTEGER(4)
+      "STATIC(endian=big)\ndevice_index INTEGER(4)
        temperature FLOAT(4;0.0;100.0)
        measurement XOR(2;[0x01:device_index;0x02:temperature])
        measurements LIST(measurement)\n")
@@ -134,7 +134,7 @@ class ConfiguratorTest < Minitest::Test
 
 
   def test_it_should_parse_statics
-    assert parsed = @parser.parse("temperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)\n")
+    assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)\n")
     codecs = parsed.value
     codec = codecs.key_2_codec("temperature")
 
@@ -143,6 +143,7 @@ class ConfiguratorTest < Minitest::Test
 
   def test_it_should_parse_readme_example
     config = <<~CFG
+          STATIC(endian=big)
           longitude FLOAT(7;2.0;5.0)
           latitude FLOAT(7;40.0;42.0)
           position SEQUENCE(longitude;latitude)

@@ -33,18 +33,23 @@ module Configurator
   end
 
   module Configuration1
-    def lines
+    def s
       elements[0]
+    end
+
+    def lines
+      elements[3]
     end
   end
 
   module Configuration2
     def value
-        lines.elements.inject(Codecs.new) do |codecs, elt| 
-          codec = elt.line.value
-          codecs.add_codec(codec)
-          codecs
-        end
+      statics = 1
+      lines.elements.inject(Codecs.new(globals: s.value)) do |codecs, elt| 
+        codec = elt.line.value
+        codecs.add_codec(codec)
+        codecs
+      end            
     end
   end
 
@@ -60,58 +65,94 @@ module Configurator
     end
 
     i0, s0 = index, []
-    s1, i1 = [], index
-    loop do
-      i2, s2 = index, []
-      r3 = _nt_line
-      s2 << r3
+    r2 = _nt_statics
+    if r2
+      r1 = r2
+    else
+      r1 = instantiate_node(SyntaxNode,input, index...index)
+    end
+    s0 << r1
+    if r1
+      r4 = _nt_comment
+      if r4
+        r3 = r4
+      else
+        r3 = instantiate_node(SyntaxNode,input, index...index)
+      end
+      s0 << r3
       if r3
-        r5 = _nt_space
-        if r5
-          r4 = r5
-        else
-          r4 = instantiate_node(SyntaxNode,input, index...index)
+        s5, i5 = [], index
+        loop do
+          r6 = _nt_eol
+          if r6
+            s5 << r6
+          else
+            break
+          end
         end
-        s2 << r4
-        if r4
-          s6, i6 = [], index
+        if s5.empty?
+          @index = i5
+          r5 = nil
+        else
+          r5 = instantiate_node(SyntaxNode,input, i5...index, s5)
+        end
+        s0 << r5
+        if r5
+          s7, i7 = [], index
           loop do
-            r7 = _nt_eol
-            if r7
-              s6 << r7
+            i8, s8 = index, []
+            r9 = _nt_line
+            s8 << r9
+            if r9
+              r11 = _nt_space
+              if r11
+                r10 = r11
+              else
+                r10 = instantiate_node(SyntaxNode,input, index...index)
+              end
+              s8 << r10
+              if r10
+                s12, i12 = [], index
+                loop do
+                  r13 = _nt_eol
+                  if r13
+                    s12 << r13
+                  else
+                    break
+                  end
+                end
+                if s12.empty?
+                  @index = i12
+                  r12 = nil
+                else
+                  r12 = instantiate_node(SyntaxNode,input, i12...index, s12)
+                end
+                s8 << r12
+              end
+            end
+            if s8.last
+              r8 = instantiate_node(SyntaxNode,input, i8...index, s8)
+              r8.extend(Configuration0)
+            else
+              @index = i8
+              r8 = nil
+            end
+            if r8
+              s7 << r8
             else
               break
             end
           end
-          if s6.empty?
-            @index = i6
-            r6 = nil
+          if s7.empty?
+            @index = i7
+            r7 = nil
           else
-            r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
+            r7 = instantiate_node(SyntaxNode,input, i7...index, s7)
           end
-          s2 << r6
+          s0 << r7
         end
       end
-      if s2.last
-        r2 = instantiate_node(SyntaxNode,input, i2...index, s2)
-        r2.extend(Configuration0)
-      else
-        @index = i2
-        r2 = nil
-      end
-      if r2
-        s1 << r2
-      else
-        break
-      end
     end
-    if s1.empty?
-      @index = i1
-      r1 = nil
-    else
-      r1 = instantiate_node(SyntaxNode,input, i1...index, s1)
-    end
-    s0 << r1
     if s0.last
       r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
       r0.extend(Configuration1)

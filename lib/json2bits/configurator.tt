@@ -18,13 +18,15 @@
 grammar Configurator
 
   rule configuration
+    s:statics? comment? eol+
     lines:(line space? eol+)+ {
         def value
-            lines.elements.inject(Codecs.new) do |codecs, elt| 
-              codec = elt.line.value
-              codecs.add_codec(codec)
-              codecs
-            end
+          statics = 1
+          lines.elements.inject(Codecs.new(globals: s.value)) do |codecs, elt| 
+            codec = elt.line.value
+            codecs.add_codec(codec)
+            codecs
+          end            
         end
     }
   end  

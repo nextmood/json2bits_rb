@@ -13,6 +13,8 @@ class Codec
         @codecs = codecs
     end
 
+    def integer_encoding_little_endian? = @codecs.integer_encoding_little_endian?
+
     def to_s
         "#{self.class} #{@key}"
     end
@@ -93,12 +95,27 @@ class CodecInteger < CodecFixLength
 
     def serialize(bit_stream, value, is_last: true)
         raise "Value #{value} exceeds maximum integer #{@max_integer}" if value > @max_integer
-        bit_stream.write_bits(value, @nb_bit)
+        if integer_encoding_little_endian? && @nb_bit > 8
+            nb_full_bytes = @nb_bit / 8
+            remaining_bits = @nb_bit % 8
+            nb_full_bytes.times { |i| bit_stream.write_bits((value >> (8 * i)) & 0xFF, 8) }
+            bit_stream.write_bits((value >> (8 * nb_full_bytes)) & ((1 << remaining_bits) - 1), remaining_bits) if remaining_bits > 0
+        else
+            bit_stream.write_bits(value, @nb_bit)
+        end
         super(bit_stream, value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
-        bit_stream.read_bits(@nb_bit)
+        if integer_encoding_little_endian? && @nb_bit > 8
+            nb_full_bytes = @nb_bit / 8
+            remaining_bits = @nb_bit % 8
+            result = nb_full_bytes.times.reduce(0) { |acc, i| acc | (bit_stream.read_bits(8) << (8 * i)) }
+            result |= bit_stream.read_bits(remaining_bits) << (8 * nb_full_bytes) if remaining_bits > 0
+            result
+        else
+            bit_stream.read_bits(@nb_bit)
+        end
     end
 end
 
@@ -471,9 +488,15 @@ class Codecs
 
     attr_reader :dictionnary
 
-    def initialize
+    # endian is only used for CodecInteger (and any subclasses) with more than 8 bits
+    def initialize(globals: {})
         @dictionnary = {}
+        @globals = {"endian" => "big"}.merge(globals)
     end
+
+    def integer_encoding_little_endian? = @globals["endian"] == "little"
+
+    def globals(key) = @globals[key]
 
     def serialize_to_bytes(key, value, compute_nb_bit: false)
         key_2_codec(key).serialize_to_bytes(value, compute_nb_bit: compute_nb_bit)

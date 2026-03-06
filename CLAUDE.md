@@ -45,6 +45,8 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 
 ## Configuration DSL Format
 
+First line (optional): `STATIC(endian=big|little)` — sets global integer byte order (default: `big`). Only applies to `CodecInteger` and subclasses with `nb_bit > 8`. `DATETIME` is always little-endian regardless.
+
 Line format: `<key> <CODEC>(parameters) [STATIC(metadata)] [// comment]`
 
 Available codecs:
