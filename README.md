@@ -177,7 +177,8 @@ temperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)
 ```
 
 Static values can be:
-- **Strings**: `unit=celsius`
+- **Quoted strings**: `label="temp sensor"` — use double quotes when the value contains spaces or special characters
+- **Bare identifiers** (unquoted): `unit=celsius` — alphanumeric/underscore words
 - **Integers**: `precision=2`
 - **Floats**: `threshold=0.5`
 - **Hexadecimal**: `mask=0xFF`

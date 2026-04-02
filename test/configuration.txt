@@ -4,7 +4,7 @@ timestamp DATETIME
 acknowledgement VOID
 too_many_reboot_alarm VOID STATIC(ack_required)
 too_many_resync_alarm VOID STATIC(ack_required)
-battery_indicator_alarm SYMBOL(8;low;critical) STATIC(ack_required)
+battery_indicator_alarm SYMBOL(8;low;critical) STATIC(ack_required;format=".1f°C")
 too_many_accelerometer_wake_up_alarm VOID STATIC(ack_required) 
 accelerometer_alarm SYMBOL(8;motion;freefall) STATIC(ack_required)
 add_child_nid ALIAS(nid)

@@ -141,6 +141,13 @@ class ConfiguratorTest < Minitest::Test
     assert_equal({ "unit" => "celsius", "precision" => 2, "readonly" => true }, codec.statics)
   end
 
+  def test_it_should_parse_static_string_value
+    assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;0.0;100.0) STATIC(unit=\"degrees celsius\";label=\"temp sensor\")\n")
+    codec = parsed.value.key_2_codec("temperature")
+
+    assert_equal({ "unit" => "degrees celsius", "label" => "temp sensor" }, codec.statics)
+  end
+
   def test_it_should_parse_readme_example
     config = <<~CFG
           STATIC(endian=big)

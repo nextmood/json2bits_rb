@@ -188,7 +188,7 @@ grammar Configurator
   end
 
   rule static_value
-    float / integer / hexa / boolean / key 
+    float / integer / hexa / quoted_string / boolean / key
   end
 
   rule static_key_value
@@ -243,9 +243,17 @@ grammar Configurator
     
   rule boolean
     "true" / "false" {
-        def value 
+        def value
             text_value == "true"
-        end 
+        end
+    }
+  end
+
+  rule quoted_string
+    '"' (!'"' .)* '"' {
+        def value
+            text_value[1..-2]
+        end
     }
   end
 

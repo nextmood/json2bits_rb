@@ -1616,18 +1616,24 @@ module Configurator
           r3 = SyntaxNode.new(input, (index-1)...index) if r3 == true
           r0 = r3
         else
-          r4 = _nt_boolean
+          r4 = _nt_quoted_string
           if r4
             r4 = SyntaxNode.new(input, (index-1)...index) if r4 == true
             r0 = r4
           else
-            r5 = _nt_key
+            r5 = _nt_boolean
             if r5
               r5 = SyntaxNode.new(input, (index-1)...index) if r5 == true
               r0 = r5
             else
-              @index = i0
-              r0 = nil
+              r6 = _nt_key
+              if r6
+                r6 = SyntaxNode.new(input, (index-1)...index) if r6 == true
+                r0 = r6
+              else
+                @index = i0
+                r0 = nil
+              end
             end
           end
         end
@@ -2083,7 +2089,7 @@ module Configurator
   end
 
   module Boolean0
-    def value 
+    def value
         text_value == "true"
     end
   end
@@ -2129,6 +2135,110 @@ module Configurator
     end
 
     node_cache[:boolean][start_index] = r0
+
+    r0
+  end
+
+  module QuotedString0
+  end
+
+  module QuotedString1
+  end
+
+  module QuotedString2
+    def value
+        text_value[1..-2]
+    end
+  end
+
+  def _nt_quoted_string
+    start_index = index
+    if node_cache[:quoted_string].has_key?(index)
+      cached = node_cache[:quoted_string][index]
+      if cached
+        node_cache[:quoted_string][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    if (match_len = has_terminal?('"', false, index))
+      r1 = true
+      @index += match_len
+    else
+      terminal_parse_failure('\'"\'')
+      r1 = nil
+    end
+    s0 << r1
+    if r1
+      s2, i2 = [], index
+      loop do
+        i3, s3 = index, []
+        i4 = index
+        if (match_len = has_terminal?('"', false, index))
+          r5 = true
+          @index += match_len
+        else
+          terminal_parse_failure('\'"\'')
+          r5 = nil
+        end
+        if r5
+          @index = i4
+          r4 = nil
+          terminal_parse_failure('\'"\'', true)
+        else
+          @terminal_failures.pop
+          @index = i4
+          r4 = instantiate_node(SyntaxNode,input, index...index)
+        end
+        s3 << r4
+        if r4
+          if index < input_length
+            r6 = true
+            @index += 1
+          else
+            terminal_parse_failure("any character")
+            r6 = nil
+          end
+          s3 << r6
+        end
+        if s3.last
+          r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
+          r3.extend(QuotedString0)
+        else
+          @index = i3
+          r3 = nil
+        end
+        if r3
+          s2 << r3
+        else
+          break
+        end
+      end
+      r2 = instantiate_node(SyntaxNode,input, i2...index, s2)
+      s0 << r2
+      if r2
+        if (match_len = has_terminal?('"', false, index))
+          r7 = true
+          @index += match_len
+        else
+          terminal_parse_failure('\'"\'')
+          r7 = nil
+        end
+        s0 << r7
+      end
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(QuotedString1)
+      r0.extend(QuotedString2)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:quoted_string][start_index] = r0
 
     r0
   end
