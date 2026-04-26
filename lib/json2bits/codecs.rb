@@ -489,7 +489,8 @@ class CodecXor < CodecComposite
         keys_to_descriptor = @bkey_2_codec.each_with_object({}) do |(bkey, codec),h|
             h[codec.key] = codec.descriptor.merge(bkey: bkey)
         end
-        super.merge(type: :xor, keys_to_descriptor:)
+        prefix_descriptors = @prefix_codecs.map(&:descriptor)
+        super.merge(type: :xor, keys_to_descriptor:, prefix_descriptors:)
     end
 
     private
