@@ -192,6 +192,62 @@ codec = codecs.key_2_codec("temperature")
 codec.statics # => {"unit" => "celsius", "precision" => 2, "readonly" => true}
 ```
 
+### Codec descriptors
+
+Every codec exposes a `descriptor` method that returns a plain symbol-keyed hash describing its structure. This is intended for external tools (e.g. an HTML/JS editor) that need to build a UI programmatically from the grammar, without depending on the Ruby class hierarchy.
+
+```ruby
+codecs = Codecs.new
+codecs.add_codec(CodecFloat.new(key: :ratio, min_float: 0.0, max_float: 1.0, nb_bit: 8,
+                                statics: { "unit" => "percent" }, comment: "battery level"))
+
+codecs.descriptor(:ratio)
+# => { key: :ratio, comment: "battery level", unit: "percent", type: :float, min: 0.0, max: 1.0 }
+```
+
+Composite codecs nest their children:
+
+```ruby
+codecs.add_codec(CodecInteger.new(key: :speed,    nb_bit: 5))
+codecs.add_codec(CodecInteger.new(key: :altitude, nb_bit: 9))
+codecs.add_codec(CodecSequence.new(key: :flight, keys: [:speed, :altitude]))
+
+codecs.descriptor(:flight)
+# => {
+#      key: :flight, comment: nil, type: :sequence,
+#      items: [
+#        { key: :speed,    comment: nil, type: :integer, min: 0, max: 31 },
+#        { key: :altitude, comment: nil, type: :integer, min: 0, max: 511 }
+#      ]
+#    }
+```
+
+To get descriptors for every codec in the registry at once:
+
+```ruby
+codecs.descriptors  # => { speed: { ... }, altitude: { ... }, flight: { ... } }
+```
+
+The `type` values map to codec kinds as follows:
+
+| `type` value | Codec |
+| --- | --- |
+| `:boolean` | `BOOLEAN` |
+| `:integer` | `INTEGER`, `INTEGER_LONG` |
+| `:float` | `FLOAT` |
+| `:bytes` | `BYTES` |
+| `:hexa` | `HEXA` |
+| `:symbol` | `SYMBOL` |
+| `:datetime` | `DATETIME` |
+| `:void` | `VOID` |
+| `:sequence` | `SEQUENCE` — includes `items:` array |
+| `:alias` | `ALIAS` — includes `item:` with the target's descriptor |
+| `:array` | `ARRAY` — includes `item:` and `nb_item_max:` |
+| `:xor` | `XOR` — includes `keys_to_descriptor:` hash keyed by codec key, each entry carries `bkey:` |
+| `:xor_list_item` | `LIST` — includes `item_descriptor:` with the XOR codec's descriptor |
+
+Any `STATIC` metadata attached to the codec is merged into the descriptor with symbolized keys, so `STATIC(unit=celsius)` becomes `unit: "celsius"`.
+
 ### Working with codecs directly
 
 You can also instantiate codecs in Ruby without the DSL:

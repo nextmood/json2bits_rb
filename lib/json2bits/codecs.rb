@@ -19,6 +19,10 @@ class Codec
         "#{self.class} #{@key}"
     end
 
+    def descriptor
+        statics.transform_keys(&:to_sym).merge(key: @key, comment: comment)
+    end
+
     # parameters value depends of the subclass (could be an integer, a float, a list of bytes, a string etc...)
     # also bit_stream is modified in place
     # always return the bit_stream
@@ -71,12 +75,17 @@ class CodecFixLength < Codec
     def to_s
         "#{super} nb_bit=#{@nb_bit}"
     end
+
 end
 
 # Emits no payload (0 bits); useful as a marker or placeholder
 class CodecVoid < CodecFixLength
     def initialize(key:, statics: {}, comment: nil)
         super(key: key, nb_bit: 0, statics: statics, comment: comment)
+    end
+
+    def descriptor
+        super.merge(type: :void)
     end
 
     def deserialize(bit_stream)
@@ -91,6 +100,10 @@ class CodecInteger < CodecFixLength
         raise "nb_bit must be greater than 0 and less than or equal to 64" if nb_bit < 1 || nb_bit > 64
         @max_integer ||= (2 ** nb_bit) - 1
         super(key: key, nb_bit: nb_bit, statics: statics, comment: comment)
+    end
+
+    def descriptor
+        super.merge(type: :integer, min:0, max: @max_integer)
     end
 
     def serialize(bit_stream, value, is_last: true)
@@ -128,6 +141,10 @@ class CodexDateTime < CodecFixLength
         super(key: key, nb_bit: 48, statics: statics, comment: comment)
     end
 
+    def descriptor
+        super.merge(type: :datetime)
+    end
+
     def serialize(bit_stream, value, is_last: true)
         value = Time.parse(value) if value.is_a?(String)
         ms = value.to_i * 1000 + value.usec / 1000 - Y2K_EPOCH_MS
@@ -157,6 +174,9 @@ class CodecBoolean < CodecInteger
         int_value == 1
     end
     
+    def descriptor
+        super.reject { |k, _| [:min, :max].include?(k) }.merge(type: :boolean)
+    end
 end
 
 # Encodes a symbol from a predefined list as its index
@@ -176,6 +196,10 @@ class CodecSymbol < CodecInteger
 
     def to_s
         "#{super} symbols=#{@symbols}"
+    end
+
+    def descriptor
+        super.merge(type: :symbol, symbols: @symbols)
     end
 end
 
@@ -201,10 +225,15 @@ class CodecFloat < CodecInteger
     def to_s
         "#{super} range=(#{@min_float}, #{@max_float})"
     end
+
+    def descriptor
+        super.merge(type: :float, min: @min_float, max: @max_float)
+    end
 end
 
 # Raw byte data of fixed length
 class CodecBytes < CodecFixLength
+    
     def initialize(key:, nb_bytes:, statics: {}, comment: nil)
         super(key: key, nb_bit: nb_bytes * 8, statics: statics, comment: comment)
     end
@@ -225,6 +254,10 @@ class CodecBytes < CodecFixLength
         end
         bytes.pack("C*")
     end
+
+    def descriptor
+        super.merge(type: :bytes, nb_bytes: @nb_bit / 8 )
+    end
 end
 
 # Hex string representation of byte data (e.g., "a1b2c3")
@@ -237,6 +270,10 @@ class CodecHexa < CodecBytes
     def deserialize(bit_stream)
         bytes = super(bit_stream)
         bytes.unpack1("H*")
+    end
+
+    def descriptor
+        super.merge(type: :hexa)
     end
 end
 
@@ -265,13 +302,18 @@ class CodecAlias < CodecComposite
     def deserialize(bit_stream)
         @target_codec.deserialize(bit_stream)
     end
+
+    def descriptor
+        super.merge(type: :alias, item: @target_codec.descriptor)
+    end
+
 end
 
 # Variable-length integer that selects the smallest segment able to hold the value
 class CodecIntegerLong < CodecComposite
-    def initialize(key:, bits_segement:, statics: {}, comment: nil)
+    def initialize(key:, bits_segment:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
-        @bits_segment = bits_segement.sort.map { |nb_bit| [nb_bit, 2**nb_bit - 1] } 
+        @bits_segment = bits_segment.sort.map { |nb_bit| [nb_bit, 2**nb_bit - 1] } 
         raise "integer can't have more than 64 bits" if @bits_segment.last.first > 64
         @max_value = @bits_segment.last.last
         @selector_nb_bits = Math.log2(@bits_segment.size).ceil
@@ -295,6 +337,9 @@ class CodecIntegerLong < CodecComposite
         bit_stream.read_bits(nb_bit)
     end
 
+    def descriptor
+        super.merge(type: :integer, min: 0, max: @max_value)
+    end
 
 end
 
@@ -306,24 +351,32 @@ class CodecSequence < CodecComposite
     end
 
     def serialize(bit_stream, value, is_last: true)
-        last_key = @keys.last
-        @keys.each do |key|
-            codec = @codecs.key_2_codec(key)
-            codec.serialize(bit_stream, value.fetch(key), is_last: key == last_key && is_last)
+        last_codec = @sequence_codecs.last
+        @sequence_codecs.each do |codec|
+            codec.serialize(bit_stream, value.fetch(codec.key), is_last: codec == last_codec && is_last)
         end
         super(bit_stream, value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
-        @keys.each_with_object({}) do |key, result|
-            codec = @codecs.key_2_codec(key)
-            result[key] = codec.deserialize(bit_stream)
+        @sequence_codecs.each_with_object({}) do |codec, result|
+            result[codec.key] = codec.deserialize(bit_stream)
         end
+    end
+
+    def post_initialize(codecs)
+        super(codecs)
+        @sequence_codecs = @keys.map { |key| @codecs.key_2_codec(key) }
     end
 
     def to_s
         "#{super} [#{@keys.join(' -> ')}]"
     end
+
+    def descriptor
+        super.merge(type: :sequence, items: @sequence_codecs.map(&:descriptor))
+    end
+
 end
 
 # Homogeneous array with length prefix
@@ -332,27 +385,35 @@ class CodecArray < CodecComposite
         super(key: key, statics: statics, comment: comment)
         @item_key = item_key
         @counter_nb_bits = nb_bit || Math.log2(nb_item_max + 1).ceil
+        @nb_item_max = 2**@counter_nb_bits - 1
+    end
+
+    def post_initialize(codecs)
+        super(codecs)
+        @item_codec = @codecs.key_2_codec(@item_key)
     end
 
     def serialize(bit_stream, value, is_last: true)
         nb_item = value.size
         bit_stream.write_bits(nb_item, @counter_nb_bits)
-        item_codec = @codecs.key_2_codec(@item_key)
         last_item = value.last
         value.each do |item|
-            item_codec.serialize(bit_stream, item, is_last: item == last_item && is_last)
+            @item_codec.serialize(bit_stream, item, is_last: item == last_item && is_last)
         end
         super(bit_stream, value, is_last: is_last)
     end
 
     def deserialize(bit_stream)
         nb_item = bit_stream.read_bits(@counter_nb_bits)
-        item_codec = @codecs.key_2_codec(@item_key)
-        nb_item.times.map { item_codec.deserialize(bit_stream) }
+        nb_item.times.map { @item_codec.deserialize(bit_stream) }
     end
     
     def to_s
         "#{super} [#{@item_key}, ...] #{2**@counter_nb_bits -1} max items"
+    end
+
+    def descriptor
+        super.merge(type: :array, item: @item_codec.descriptor, nb_item_max: @nb_item_max)
     end
 end
 
@@ -362,8 +423,8 @@ class CodecXor < CodecComposite
 
     def initialize(key:, statics: {}, comment: nil, nb_bit_binary_key: nil, binary_keys:, prefix_keys: [])
         super(key: key, statics: statics, comment: comment)
-        @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
         @binary_keys = binary_keys
+        @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
         @prefix_keys = prefix_keys
         @max_type = 2 ** @nb_bit_binary_key
         @binary_keys.each do |k, bkey|
@@ -424,6 +485,13 @@ class CodecXor < CodecComposite
         "#{super} options=#{@option_keys.join(', ')} prefixes=#{@prefix_keys.join(', ')}"
     end
 
+    def descriptor
+        keys_to_descriptor = @bkey_2_codec.each_with_object({}) do |(bkey, codec),h|
+            h[codec.key] = codec.descriptor.merge(bkey: bkey)
+        end
+        super.merge(type: :xor, keys_to_descriptor:)
+    end
+
     private
 
     def add_codec(codec:, binary_key:)
@@ -437,22 +505,22 @@ end
 class CodecList < CodecComposite
     def initialize(key:, item_key:, statics: {}, comment: nil)
         super(key: key, statics: statics, comment: comment)
-        @item_key = item_key
+        @item_xor_key = item_key # an XOR key is expected
     end
 
     def post_initialize(codecs)
         super(codecs)
-        @item_codec = @codecs.key_2_codec(@item_key)
-        raise "Item codec #{@item_key} not found for list #{@key}" if @item_codec.nil?
-        @item_codec.safe_for_list?
-        @eol_nb_bit = @item_codec.eol_nb_bit
+        @item_xor_codec = @codecs.key_2_codec(@item_xor_key)
+        raise "Item codec #{@item_xor_key} not found for list #{@key}" if @item_xor_codec.nil?
+        @item_xor_codec.safe_for_list?
+        @eol_nb_bit = @item_xor_codec.eol_nb_bit
     end
 
     def serialize(bit_stream, item_values, is_last: true)
         raise "Expecting an array value for list #{@key}" unless item_values.is_a?(Array)
         last_index = item_values.size - 1
         item_values.each_with_index do |item_value, index|
-            @item_codec.serialize(bit_stream, item_value, is_last: index == last_index && is_last)
+            @item_xor_codec.serialize(bit_stream, item_value, is_last: index == last_index && is_last)
         end
         bit_stream.write_bits(0x0, @eol_nb_bit) unless is_last
         super(bit_stream, item_values, is_last: is_last)
@@ -460,8 +528,12 @@ class CodecList < CodecComposite
 
     def deserialize(bit_stream, result: [])
         return result if is_end_of_list?(bit_stream)
-        result << @item_codec.deserialize(bit_stream)
+        result << @item_xor_codec.deserialize(bit_stream)
         deserialize(bit_stream, result: result)
+    end
+
+    def descriptor
+        super.merge(type: :xor_list_item, item_descriptor: @item_xor_codec.descriptor)
     end
 
     private
@@ -512,9 +584,11 @@ class Codecs
         codec
     end
 
-    def key_2_codec(key)
-        @dictionnary[key]
-    end
+    def key_2_codec(key) = @dictionnary[key]
+
+    def descriptor(key) = key_2_codec(key).descriptor
+    
+    def descriptors = @dictionnary.transform_values(&:descriptor)
 
     def to_s
         s = @dictionnary.map do |key, codec|

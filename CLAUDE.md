@@ -35,6 +35,7 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 2. Parser produces a `Codecs` instance containing all defined codecs
 3. A codec's `serialize_to_bytes(json)` converts JSON to byte array via `BitStream`
 4. A codec's `deserialize_from_bytes(bytes)` reconstructs JSON from bytes
+5. A codec's `descriptor` returns a symbol-keyed hash describing its structure for external tooling (e.g. UI editors). `Codecs#descriptor(key)` and `Codecs#descriptors` expose single and all-codec variants.
 
 ### Adding a New Codec Type
 

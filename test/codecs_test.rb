@@ -63,7 +63,7 @@ class CodecsTest < Minitest::Test
   end
 
   def test_integer_long_codec_segments
-    codec = @codecs.add_codec(CodecIntegerLong.new(key: :long, bits_segement: [4, 10, 18]))
+    codec = @codecs.add_codec(CodecIntegerLong.new(key: :long, bits_segment: [4, 10, 18]))
 
     assert_equal 11, round_trip(codec, 11)
     assert_equal 777, round_trip(codec, 777)
@@ -300,6 +300,152 @@ class CodecsTest < Minitest::Test
     codecs = Codecs.new(globals: {"endian" => "little"})
     codec = codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 8))
     assert_equal [0xAB], codec.serialize_to_bytes(0xAB)
+  end
+
+  # --- descriptor ---
+
+  def test_integer_descriptor
+    codec = @codecs.add_codec(CodecInteger.new(key: :speed, nb_bit: 8))
+    d = codec.descriptor
+    assert_equal :speed,   d[:key]
+    assert_equal :integer, d[:type]
+    assert_equal 0,        d[:min]
+    assert_equal 255,      d[:max]
+    assert_nil             d[:comment]
+  end
+
+  def test_boolean_descriptor_has_no_min_max
+    codec = @codecs.add_codec(CodecBoolean.new(key: :flag))
+    d = codec.descriptor
+    assert_equal :boolean, d[:type]
+    assert_nil d[:min]
+    assert_nil d[:max]
+  end
+
+  def test_symbol_descriptor
+    codec = @codecs.add_codec(CodecSymbol.new(key: :state, symbols: [:idle, :active, :paused]))
+    d = codec.descriptor
+    assert_equal :symbol,               d[:type]
+    assert_equal [:idle, :active, :paused], d[:symbols]
+  end
+
+  def test_float_descriptor
+    codec = @codecs.add_codec(CodecFloat.new(key: :ratio, min_float: 0.0, max_float: 1.0, nb_bit: 8))
+    d = codec.descriptor
+    assert_equal :float, d[:type]
+    assert_equal 0.0,   d[:min]
+    assert_equal 1.0,   d[:max]
+  end
+
+  def test_bytes_descriptor
+    codec = @codecs.add_codec(CodecBytes.new(key: :payload, nb_bytes: 4))
+    d = codec.descriptor
+    assert_equal :bytes, d[:type]
+    assert_equal 4,      d[:nb_bytes]
+  end
+
+  def test_hexa_descriptor
+    codec = @codecs.add_codec(CodecHexa.new(key: :hex, nb_bytes: 2))
+    d = codec.descriptor
+    assert_equal :hexa, d[:type]
+    assert_equal 2,     d[:nb_bytes]
+  end
+
+  def test_datetime_descriptor
+    codec = @codecs.add_codec(CodexDateTime.new(key: :ts))
+    assert_equal :datetime, codec.descriptor[:type]
+  end
+
+  def test_void_descriptor
+    codec = @codecs.add_codec(CodecVoid.new(key: :marker))
+    assert_equal :void, codec.descriptor[:type]
+  end
+
+  def test_sequence_descriptor
+    @codecs.add_codec(CodecInteger.new(key: :speed,    nb_bit: 5))
+    @codecs.add_codec(CodecInteger.new(key: :altitude, nb_bit: 9))
+    codec = @codecs.add_codec(CodecSequence.new(key: :flight, keys: [:speed, :altitude]))
+    d = codec.descriptor
+    assert_equal :sequence, d[:type]
+    assert_equal 2,         d[:items].size
+    assert_equal :speed,    d[:items][0][:key]
+    assert_equal :integer,  d[:items][0][:type]
+    assert_equal :altitude, d[:items][1][:key]
+  end
+
+  def test_array_descriptor
+    @codecs.add_codec(CodecInteger.new(key: :item, nb_bit: 6))
+    codec = @codecs.add_codec(CodecArray.new(key: :items, item_key: :item, nb_item_max: 7))
+    d = codec.descriptor
+    assert_equal :array,   d[:type]
+    assert_equal 7,        d[:nb_item_max]
+    assert_equal :integer, d[:item][:type]
+    assert_equal :item,    d[:item][:key]
+  end
+
+  def test_xor_descriptor
+    @codecs.add_codec(CodecInteger.new(key: :short, nb_bit: 5))
+    @codecs.add_codec(CodecInteger.new(key: :long,  nb_bit: 11))
+    codec = @codecs.add_codec(CodecXor.new(
+      key: :choice,
+      nb_bit_binary_key: 4,
+      binary_keys: { short: 0x1, long: 0x2 }
+    ))
+    d = codec.descriptor
+    assert_equal :xor, d[:type]
+    assert d[:keys_to_descriptor].key?(:short)
+    assert d[:keys_to_descriptor].key?(:long)
+    assert_equal 0x1, d[:keys_to_descriptor][:short][:bkey]
+    assert_equal 0x2, d[:keys_to_descriptor][:long][:bkey]
+  end
+
+  def test_list_descriptor
+    @codecs.add_codec(CodecInteger.new(key: :temp, nb_bit: 6))
+    @codecs.add_codec(CodecXor.new(key: :item, nb_bit_binary_key: 4, binary_keys: { temp: 0x1 }))
+    codec = @codecs.add_codec(CodecList.new(key: :measurements, item_key: :item))
+    d = codec.descriptor
+    assert_equal :xor_list_item, d[:type]
+    assert_equal :xor,           d[:item_descriptor][:type]
+  end
+
+  def test_alias_descriptor
+    @codecs.add_codec(CodecInteger.new(key: :original, nb_bit: 8))
+    codec = @codecs.add_codec(CodecAlias.new(key: :aliased, target_key: :original))
+    d = codec.descriptor
+    assert_equal :alias,   d[:type]
+    assert_equal :integer, d[:item][:type]
+    assert_equal :original, d[:item][:key]
+  end
+
+  def test_descriptor_includes_comment
+    codec = @codecs.add_codec(CodecInteger.new(key: :val, nb_bit: 8, comment: "sensor value"))
+    assert_equal "sensor value", codec.descriptor[:comment]
+  end
+
+  def test_descriptor_includes_statics_as_symbol_keys
+    codec = @codecs.add_codec(CodecInteger.new(
+      key: :temp, nb_bit: 8,
+      statics: { "unit" => "celsius", "readonly" => true }
+    ))
+    d = codec.descriptor
+    assert_equal "celsius", d[:unit]
+    assert_equal true,      d[:readonly]
+  end
+
+  def test_codecs_descriptor_by_key
+    @codecs.add_codec(CodecInteger.new(key: :speed, nb_bit: 5))
+    d = @codecs.descriptor(:speed)
+    assert_equal :integer, d[:type]
+    assert_equal :speed,   d[:key]
+  end
+
+  def test_codecs_descriptors_all
+    @codecs.add_codec(CodecInteger.new(key: :speed, nb_bit: 5))
+    @codecs.add_codec(CodecBoolean.new(key: :flag))
+    all = @codecs.descriptors
+    assert_equal 2,        all.size
+    assert_equal :integer, all[:speed][:type]
+    assert_equal :boolean, all[:flag][:type]
   end
 
   def test_integer_little_endian_parser_integration
