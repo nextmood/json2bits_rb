@@ -458,6 +458,21 @@ class CodecsTest < Minitest::Test
     assert_equal [0x34, 0x12], codec.serialize_to_bytes(0x1234)
   end
 
+  def test_extract_unit_from_format
+    # "%dms" -> "ms"
+    assert_equal "ms", Codec.send(:extract_unit_from_format, "%dms")
+    # "%.2f°C" -> "°C"
+    assert_equal "°C", Codec.send(:extract_unit_from_format, "%.2f°C")
+    # "%d" -> no unit
+    assert_nil Codec.send(:extract_unit_from_format, "%d")
+    # "%.1f%%" -> "%"
+    assert_equal "%", Codec.send(:extract_unit_from_format, "%.1f%%")
+    # nil input -> nil
+    assert_nil Codec.send(:extract_unit_from_format, nil)
+    # non-string input -> nil
+    assert_nil Codec.send(:extract_unit_from_format, 42)
+  end
+
   private
 
   def round_trip(codec, value)

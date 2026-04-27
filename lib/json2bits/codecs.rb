@@ -20,7 +20,9 @@ class Codec
     end
 
     def descriptor
-        statics.transform_keys(&:to_sym).merge(key: @key, comment: comment)
+        s = statics.transform_keys(&:to_sym)
+        s[:unit] = Codec.extract_unit_from_format(s[:format]) if s[:format]
+        s.merge(key: @key, comment: comment)
     end
 
     # parameters value depends of the subclass (could be an integer, a float, a list of bytes, a string etc...)
@@ -62,6 +64,19 @@ class Codec
             h
         end
     end
+
+
+    private_class_method def self.extract_unit_from_format(format)
+        return nil unless format.is_a?(String)
+        # format follows sprintf style, for example
+        # - format="%dms" -> unit is "ms"
+        # - format="%.2f°C" -> unit is "°C"
+        # - format="%d" -> no unit
+        # - format="%.1f%%" -> unit is "%"
+        unit = format[/^%[-+ #0]*\d*(?:\.\d+)?[a-zA-Z](.+)$/, 1]
+        unit&.gsub('%%', '%')
+    end
+
 end
 
 class CodecFixLength < Codec
