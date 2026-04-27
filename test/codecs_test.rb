@@ -460,17 +460,17 @@ class CodecsTest < Minitest::Test
 
   def test_extract_unit_from_format
     # "%dms" -> "ms"
-    assert_equal "ms", Codec.send(:extract_unit_from_format, "%dms")
+    assert_equal "ms", Codec.extract_unit_from_format("%dms")
     # "%.2f°C" -> "°C"
-    assert_equal "°C", Codec.send(:extract_unit_from_format, "%.2f°C")
+    assert_equal "°C", Codec.extract_unit_from_format("%.2f°C")
     # "%d" -> no unit
-    assert_nil Codec.send(:extract_unit_from_format, "%d")
+    assert_nil Codec.extract_unit_from_format("%d")
     # "%.1f%%" -> "%"
-    assert_equal "%", Codec.send(:extract_unit_from_format, "%.1f%%")
+    assert_equal "%", Codec.extract_unit_from_format("%.1f%%")
     # nil input -> nil
-    assert_nil Codec.send(:extract_unit_from_format, nil)
+    assert_nil Codec.extract_unit_from_format(nil)
     # non-string input -> nil
-    assert_nil Codec.send(:extract_unit_from_format, 42)
+    assert_nil Codec.extract_unit_from_format(42)
   end
 
   private

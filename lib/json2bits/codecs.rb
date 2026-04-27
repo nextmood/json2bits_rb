@@ -66,7 +66,7 @@ class Codec
     end
 
 
-    private_class_method def self.extract_unit_from_format(format)
+    def self.extract_unit_from_format(format)
         return nil unless format.is_a?(String)
         # format follows sprintf style, for example
         # - format="%dms" -> unit is "ms"
