@@ -1279,7 +1279,7 @@ module Configurator
       elements[0]
     end
 
-    def key
+    def prefix_key
       elements[1]
     end
   end
@@ -1318,10 +1318,10 @@ module Configurator
   module CodecXor3
     def value
       {
-        codec_type: "CodecXor", 
+        codec_type: "CodecXor",
         nb_bit_binary_key: integer.value,
         binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) },
-        prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
+        prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.prefix_key.value }
       }
     end
   end
@@ -1411,7 +1411,7 @@ module Configurator
                         r15 = _nt_spl
                         s14 << r15
                         if r15
-                          r16 = _nt_key
+                          r16 = _nt_prefix_key
                           s14 << r16
                         end
                         if s14.last
@@ -1458,6 +1458,131 @@ module Configurator
     end
 
     node_cache[:codec_xor][start_index] = r0
+
+    r0
+  end
+
+  module PrefixKey0
+    def hexa
+      elements[1]
+    end
+  end
+
+  module PrefixKey1
+    def hexa
+      elements[1]
+    end
+
+  end
+
+  module PrefixKey2
+    def key
+      elements[0]
+    end
+
+  end
+
+  module PrefixKey3
+    def value
+      except_str = text_value[/\[except:([^\]]*)\]/, 1] || ""
+      { key: key.value, except: except_str.scan(/0x[0-9a-fA-F]+/).map { |h| h.to_i(16) } }
+    end
+  end
+
+  def _nt_prefix_key
+    start_index = index
+    if node_cache[:prefix_key].has_key?(index)
+      cached = node_cache[:prefix_key][index]
+      if cached
+        node_cache[:prefix_key][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    r1 = _nt_key
+    s0 << r1
+    if r1
+      i3, s3 = index, []
+      if (match_len = has_terminal?("[except:", false, index))
+        r4 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+        @index += match_len
+      else
+        terminal_parse_failure('"[except:"')
+        r4 = nil
+      end
+      s3 << r4
+      if r4
+        r5 = _nt_hexa
+        s3 << r5
+        if r5
+          s6, i6 = [], index
+          loop do
+            i7, s7 = index, []
+            if (match_len = has_terminal?(";", false, index))
+              r8 = true
+              @index += match_len
+            else
+              terminal_parse_failure('";"')
+              r8 = nil
+            end
+            s7 << r8
+            if r8
+              r9 = _nt_hexa
+              s7 << r9
+            end
+            if s7.last
+              r7 = instantiate_node(SyntaxNode,input, i7...index, s7)
+              r7.extend(PrefixKey0)
+            else
+              @index = i7
+              r7 = nil
+            end
+            if r7
+              s6 << r7
+            else
+              break
+            end
+          end
+          r6 = instantiate_node(SyntaxNode,input, i6...index, s6)
+          s3 << r6
+          if r6
+            if (match_len = has_terminal?("]", false, index))
+              r10 = true
+              @index += match_len
+            else
+              terminal_parse_failure('"]"')
+              r10 = nil
+            end
+            s3 << r10
+          end
+        end
+      end
+      if s3.last
+        r3 = instantiate_node(SyntaxNode,input, i3...index, s3)
+        r3.extend(PrefixKey1)
+      else
+        @index = i3
+        r3 = nil
+      end
+      if r3
+        r2 = r3
+      else
+        r2 = instantiate_node(SyntaxNode,input, index...index)
+      end
+      s0 << r2
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(PrefixKey2)
+      r0.extend(PrefixKey3)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:prefix_key][start_index] = r0
 
     r0
   end

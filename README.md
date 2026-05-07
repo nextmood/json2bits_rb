@@ -108,8 +108,45 @@ Each line of the configuration describes one codec:
 | `SEQUENCE` | `SEQUENCE(key1;key2;...)` | Concatenates several codecs in order. |
 | `ALIAS` | `ALIAS(target_key)` | Reuses another codec under a different name. |
 | `ARRAY` | `ARRAY(nb_bit;item_key)` | Writes the array length on `nb_bit` bits, then encodes each item with `item_key`. |
-| `XOR` | `XOR(nb_bit_binary_key;[0xNN:key1;0xNN:key2;...])` | One-of choice between the given codecs, selected on `nb_bit_binary_key` bits. |
+| `XOR` | `XOR(nb_bit_binary_key;[0xNN:key1;0xNN:key2;...][;prefix1[except:0xNN;...];...])` | One-of choice between the given codecs, selected on `nb_bit_binary_key` bits. Optional prefix fields are serialized after the binary key and before the payload; each prefix can carry an `[except:0xNN;...]` clause to suppress it for specific binary keys. |
 | `LIST` | `LIST(xor_key)` | Heterogeneous list using a named `XOR` codec. Appends a `0x00` terminator when not the last element in a sequence. |
+
+### XOR prefix fields and `[except:]`
+
+A `XOR` codec can declare shared prefix fields that are serialized between the binary key and the payload. This is useful when most variants carry common header fields (e.g. a device ID and a timestamp), but some variants — like an acknowledgement — carry no user data at all and should skip those fields.
+
+Each prefix key may carry an `[except:0xNN;...]` clause listing the binary keys for which that prefix is omitted:
+
+```
+nid       INTEGER(16)
+timestamp DATETIME
+ack       VOID
+
+signal XOR(8;[
+    0x01:add_child;
+    0x02:lost_child;
+    0x66:ack];
+  nid[except:0x66];timestamp[except:0x66])
+```
+
+Binary layout depending on the variant:
+
+| Variant | Layout |
+| --- | --- |
+| `add_child` (0x01) | `[8-bit key][16-bit nid][48-bit timestamp][16-bit payload]` |
+| `ack` (0x66) | `[8-bit key]` — no nid, no timestamp |
+
+The serialized hash must include only the prefix fields that are active for the chosen variant:
+
+```ruby
+# ack omits both prefix fields
+signal_codec.serialize_to_bytes({"ack" => nil})
+
+# add_child includes both
+signal_codec.serialize_to_bytes({"nid" => 45, "timestamp" => Time.utc(2026, 1, 1), "add_child" => 12})
+```
+
+Deserialization mirrors this: the returned hash contains only the prefix keys that were actually present in the stream for the decoded variant.
 
 ### DATETIME example
 
@@ -243,7 +280,7 @@ The `type` values map to codec kinds as follows:
 | `:sequence` | `SEQUENCE` — includes `items:` array |
 | `:alias` | `ALIAS` — includes `item:` with the target's descriptor |
 | `:array` | `ARRAY` — includes `item:` and `nb_item_max:` |
-| `:xor` | `XOR` — includes `keys_to_descriptor:` hash keyed by codec key, each entry carries `bkey:` |
+| `:xor` | `XOR` — includes `keys_to_descriptor:` hash keyed by codec key (each entry carries `bkey:`), and `prefix_descriptors:` array (each entry carries `except:` with the binary keys for which that prefix is skipped) |
 | `:xor_list_item` | `LIST` — includes `item_descriptor:` with the XOR codec's descriptor |
 
 Any `STATIC` metadata attached to the codec is merged into the descriptor with symbolized keys, so `STATIC(unit=celsius)` becomes `unit: "celsius"`.

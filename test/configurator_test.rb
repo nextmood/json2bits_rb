@@ -132,6 +132,38 @@ class ConfiguratorTest < Minitest::Test
     assert_equal input_ori, input_bis
   end
 
+  def test_xor_prefix_except_excludes_all_prefixes
+    # 0x66 (acknowledgement): nid[except:0x66] and timestamp[except:0x66] both excluded
+    configuration = File.read("test/configuration.txt")
+    codecs = @parser.parse(configuration).value
+    codec_signal = codecs.key_2_codec("signal")
+
+    input = {"acknowledgement" => nil}
+    writer = BitStream.new
+    codec_signal.serialize(writer, input)
+
+    assert_equal 8, writer.nb_bits_written
+    assert_equal [0x66], writer.bytes
+
+    reader = BitStream.new(bytes: writer.bytes.dup)
+    assert_equal input, codec_signal.deserialize(reader)
+  end
+
+  def test_xor_prefix_except_excludes_one_prefix
+    # 0x34 (accelerometer_alarm): nid present, timestamp[except:0x34] excluded
+    configuration = File.read("test/configuration.txt")
+    codecs = @parser.parse(configuration).value
+    codec_signal = codecs.key_2_codec("signal")
+
+    input = {"nid" => 99, "accelerometer_alarm" => "motion"}
+    writer = BitStream.new
+    codec_signal.serialize(writer, input)
+
+    assert_equal 8 + 16 + 8, writer.nb_bits_written
+
+    reader = BitStream.new(bytes: writer.bytes.dup)
+    assert_equal input, codec_signal.deserialize(reader)
+  end
 
   def test_it_should_parse_statics
     assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;0.0;100.0) STATIC(unit=celsius;precision=2;readonly)\n")

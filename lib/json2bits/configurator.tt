@@ -159,14 +159,23 @@ grammar Configurator
 
 
   rule codec_xor
-    "XOR(" integer spl "[" loose_space b:binary_key bs:(spl binary_key)* "]" loose_space ps:(spl key)* ")" {
+    "XOR(" integer spl "[" loose_space b:binary_key bs:(spl binary_key)* "]" loose_space ps:(spl prefix_key)* ")" {
       def value
         {
-          codec_type: "CodecXor", 
+          codec_type: "CodecXor",
           nb_bit_binary_key: integer.value,
           binary_keys: bs.elements.inject(b.value) { |h, elt| h.merge!(elt.binary_key.value) },
-          prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.key.value }
+          prefix_keys: ps.elements.inject([]) { |l, elt| l << elt.prefix_key.value }
         }
+      end
+    }
+  end
+
+  rule prefix_key
+    key ("[except:" hexa (";" hexa)* "]")? {
+      def value
+        except_str = text_value[/\[except:([^\]]*)\]/, 1] || ""
+        { key: key.value, except: except_str.scan(/0x[0-9a-fA-F]+/).map { |h| h.to_i(16) } }
       end
     }
   end

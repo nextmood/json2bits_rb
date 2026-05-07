@@ -440,7 +440,8 @@ class CodecXor < CodecComposite
         super(key: key, statics: statics, comment: comment)
         @binary_keys = binary_keys
         @nb_bit_binary_key = nb_bit_binary_key || Math.log2(@binary_keys.size).ceil
-        @prefix_keys = prefix_keys
+        # Normalize: accept both {key:, except:} hashes (from parser) and plain strings (direct use)
+        @prefix_keys_config = prefix_keys.map { |pk| pk.is_a?(Hash) ? pk : { key: pk, except: [] } }
         @max_type = 2 ** @nb_bit_binary_key
         @binary_keys.each do |k, bkey|
             raise "Binary key value #{bkey} exceeds maximum #{@max_type - 1}" if bkey >= @max_type
@@ -463,27 +464,28 @@ class CodecXor < CodecComposite
             codec = codecs.key_2_codec(key) || raise("Codec #{key} not found for adding binary key")
             add_codec(codec: codec, binary_key: binary_key)
         end
-        @prefix_codecs = @prefix_keys.collect do |prefix_key|
-            codec = codecs.key_2_codec(prefix_key) || raise("Codec #{prefix_key} not found for adding prefix key")
-            raise("Prefix codec #{prefix_key} must be CodecFixLength") unless codec.is_a?(CodecFixLength)
-            codec
+        @prefix_codecs = @prefix_keys_config.map do |config|
+            codec = codecs.key_2_codec(config[:key]) || raise("Codec #{config[:key]} not found for adding prefix key")
+            raise("Prefix codec #{config[:key]} must be CodecFixLength") unless codec.is_a?(CodecFixLength)
+            { codec: codec, except: config[:except] }
         end
     end
 
-    def serialize(bit_stream, value , is_last: true)
+    def serialize(bit_stream, value, is_last: true)
         raise "Expecting a Hash for value" unless value.is_a?(Hash)
-        raise "Expecting the following key: #{@prefix_keys.join(', ')}" unless @prefix_keys.all? { |prefix_key| value.key?(prefix_key) }
         xor_key = value.keys.find { |k| @option_keys.include?(k) }
         raise "Expecting a key among #{@option_keys}" unless xor_key
-        
-        xor_value = value[xor_key]
         xor_bkey = @key_2_bkey[xor_key]
         raise "Unknown option key #{xor_key.inspect} for XOR serialization" if xor_bkey.nil?
-        bit_stream.write_bits(xor_bkey, @nb_bit_binary_key)
 
-        @prefix_codecs.each { |prefix_codec| prefix_codec.serialize(bit_stream, value[prefix_codec.key], is_last: false) }
+        active_prefixes = @prefix_codecs.reject { |entry| entry[:except].include?(xor_bkey) }
+        required_keys = active_prefixes.map { |entry| entry[:codec].key }
+        raise "Expecting the following keys: #{required_keys.join(', ')}" unless required_keys.all? { |k| value.key?(k) }
+
+        bit_stream.write_bits(xor_bkey, @nb_bit_binary_key)
+        active_prefixes.each { |entry| entry[:codec].serialize(bit_stream, value[entry[:codec].key], is_last: false) }
         xor_codec = @codecs.key_2_codec(xor_key)
-        xor_codec.serialize(bit_stream, xor_value, is_last: is_last)
+        xor_codec.serialize(bit_stream, value[xor_key], is_last: is_last)
     end
 
     def deserialize(bit_stream)
@@ -491,20 +493,26 @@ class CodecXor < CodecComposite
         xor_codec = @bkey_2_codec[xor_bkey]
         raise "Unknown binary key #{xor_bkey} during XOR deserialization" if xor_codec.nil?
         h = {}
-        @prefix_codecs.each { |prefix_codec| h[prefix_codec.key] = prefix_codec.deserialize(bit_stream) }
+        @prefix_codecs.each do |entry|
+            next if entry[:except].include?(xor_bkey)
+            h[entry[:codec].key] = entry[:codec].deserialize(bit_stream)
+        end
         h[xor_codec.key] = xor_codec.deserialize(bit_stream)
         h
     end
 
     def to_s
-        "#{super} options=#{@option_keys.join(', ')} prefixes=#{@prefix_keys.join(', ')}"
+        prefix_info = @prefix_keys_config.map do |pk|
+            pk[:except].empty? ? pk[:key] : "#{pk[:key]}[except:#{pk[:except].map { |b| '0x%02x' % b }.join(';')}]"
+        end
+        "#{super} options=#{@option_keys.join(', ')} prefixes=#{prefix_info.join(', ')}"
     end
 
     def descriptor
-        keys_to_descriptor = @bkey_2_codec.each_with_object({}) do |(bkey, codec),h|
+        keys_to_descriptor = @bkey_2_codec.each_with_object({}) do |(bkey, codec), h|
             h[codec.key] = codec.descriptor.merge(bkey: bkey)
         end
-        prefix_descriptors = @prefix_codecs.map(&:descriptor)
+        prefix_descriptors = @prefix_codecs.map { |entry| entry[:codec].descriptor.merge(except: entry[:except]) }
         super.merge(type: :xor, keys_to_descriptor:, prefix_descriptors:)
     end
 

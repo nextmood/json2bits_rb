@@ -62,7 +62,7 @@ Available codecs:
 - `SEQUENCE(k1;k2;...)` - Concatenate codecs
 - `ALIAS(target_key)` - Reference another codec
 - `ARRAY(nb_bit;item_key)` - Homogeneous list with length prefix
-- `XOR(nb_bit;[0xNN:k1;...])` - One-of choice between codecs
+- `XOR(nb_bit;[0xNN:k1;...][;prefix_key[except:0xNN;...];...])` - One-of choice between codecs, with optional shared prefix fields serialized before the payload; each prefix key may carry an `[except:...]` list of binary keys for which that prefix is omitted
 - `LIST(xor_key)` - Heterogeneous list using a XOR codec (0x00 terminator when not last)
 
 ## Key Files

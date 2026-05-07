@@ -26,6 +26,6 @@ signal XOR(8;[
         0x34:accelerometer_alarm;
         0x40:set_temperature;
         0x66:acknowledgement];
-    nid;timestamp)
+    nid[except:0x66];timestamp[except:0x66;0x34])
 signals LIST(signal)
 
