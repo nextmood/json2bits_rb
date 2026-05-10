@@ -15,6 +15,9 @@ repeat_nb_time INTEGER(8)
 repeat_delay INTEGER(8)
 repeat_cmd SEQUENCE(repeat_nb_time;repeat_delay)
 set_temperature ALIAS(repeat_cmd)
+signal_ack_required BOOLEAN
+signal_up_reserved INTEGER(7)
+signal_up_flags SEQUENCE(signal_ack_required;signal_up_reserved)
 signal XOR(8;[
         0x01:add_child_nid;
         0x02:lost_child_nid;
@@ -26,6 +29,6 @@ signal XOR(8;[
         0x34:accelerometer_alarm;
         0x40:set_temperature;
         0x66:acknowledgement];
-    nid[except:0x66];timestamp[except:0x66;0x34])
+    nid[except:0x66];signal_up_flags;timestamp[except:0x66;0x34])
 signals LIST(signal)
 

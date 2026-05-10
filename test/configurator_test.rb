@@ -105,8 +105,8 @@ class ConfiguratorTest < Minitest::Test
     assert parsed = @parser.parse(configuration)
     codecs = parsed.value
     assert codecs.is_a?(Codecs)
-    assert_equal 18, codecs.dictionnary.size
-    assert_equal ["nid", "timestamp", "acknowledgement", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "temperature", "repeat_nb_time", "repeat_delay", "repeat_cmd", "set_temperature", "signal", "signals"], codecs.dictionnary.keys
+    assert_equal 21, codecs.dictionnary.size
+    assert_equal ["nid", "timestamp", "acknowledgement", "too_many_reboot_alarm", "too_many_resync_alarm", "battery_indicator_alarm", "too_many_accelerometer_wake_up_alarm", "accelerometer_alarm", "add_child_nid", "lost_child_nid", "new_parent_nid", "temperature", "repeat_nb_time", "repeat_delay", "repeat_cmd", "set_temperature", "signal_ack_required", "signal_up_reserved", "signal_up_flags", "signal", "signals"], codecs.dictionnary.keys
 
     codec_signal = codecs.key_2_codec("signal")
     assert codec_signal.is_a?(CodecXor)
@@ -120,12 +120,12 @@ class ConfiguratorTest < Minitest::Test
 
     # serialize and deserialize a simple list of signals
     ts = Time.utc(2026, 2, 10, 13, 42, 4, 743_000)
-    input_ori = [{"nid" => 45, "timestamp" => ts, "add_child_nid" => 12}]
+    input_ori = [{"nid" => 45, "signal_up_flags" => {"signal_ack_required" => false, "signal_up_reserved" => 0}, "timestamp" => ts, "add_child_nid" => 12}]
     writer = BitStream.new
     codec_signals.serialize(writer, input_ori)
 
-    assert_equal  (8 + 16 + 48) + (16), writer.nb_bits_written
-    assert_equal [0x01, 0x00, 0x2d, 0xc7, 0xfe, 0xf9, 0xdc, 0xbf, 0x00, 0x00, 0x0c], writer.bytes
+    assert_equal  (8 + 16 + 8 + 48) + (16), writer.nb_bits_written
+    assert_equal [0x01, 0x00, 0x2d, 0x00, 0xc7, 0xfe, 0xf9, 0xdc, 0xbf, 0x00, 0x00, 0x0c], writer.bytes
 
     reader = BitStream.new(bytes: writer.bytes.dup)
     input_bis = codec_signals.deserialize(reader)
@@ -138,12 +138,12 @@ class ConfiguratorTest < Minitest::Test
     codecs = @parser.parse(configuration).value
     codec_signal = codecs.key_2_codec("signal")
 
-    input = {"acknowledgement" => nil}
+    input = {"signal_up_flags" => {"signal_ack_required" => false, "signal_up_reserved" => 0}, "acknowledgement" => nil}
     writer = BitStream.new
     codec_signal.serialize(writer, input)
 
-    assert_equal 8, writer.nb_bits_written
-    assert_equal [0x66], writer.bytes
+    assert_equal 16, writer.nb_bits_written
+    assert_equal [0x66, 0x00], writer.bytes
 
     reader = BitStream.new(bytes: writer.bytes.dup)
     assert_equal input, codec_signal.deserialize(reader)
@@ -155,11 +155,11 @@ class ConfiguratorTest < Minitest::Test
     codecs = @parser.parse(configuration).value
     codec_signal = codecs.key_2_codec("signal")
 
-    input = {"nid" => 99, "accelerometer_alarm" => "motion"}
+    input = {"nid" => 99, "signal_up_flags" => {"signal_ack_required" => false, "signal_up_reserved" => 0}, "accelerometer_alarm" => "motion"}
     writer = BitStream.new
     codec_signal.serialize(writer, input)
 
-    assert_equal 8 + 16 + 8, writer.nb_bits_written
+    assert_equal 8 + 16 + 8 + 8, writer.nb_bits_written
 
     reader = BitStream.new(bytes: writer.bytes.dup)
     assert_equal input, codec_signal.deserialize(reader)

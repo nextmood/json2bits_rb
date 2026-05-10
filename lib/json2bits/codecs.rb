@@ -15,6 +15,8 @@ class Codec
 
     def integer_encoding_little_endian? = @codecs.integer_encoding_little_endian?
 
+    def fix_length? = false
+
     def to_s
         "#{self.class} #{@key}"
     end
@@ -86,7 +88,9 @@ class CodecFixLength < Codec
     end
 
     def eol_nb_bit = @nb_bit
-        
+
+    def fix_length? = true
+
     def to_s
         "#{super} nb_bit=#{@nb_bit}"
     end
@@ -310,6 +314,8 @@ class CodecAlias < CodecComposite
 
     def eol_nb_bit = @target_codec.eol_nb_bit
 
+    def fix_length? = @target_codec.fix_length?
+
     def serialize(bit_stream, value, is_last: true)
         @target_codec.serialize(bit_stream, value, is_last: is_last)
     end
@@ -383,6 +389,8 @@ class CodecSequence < CodecComposite
         super(codecs)
         @sequence_codecs = @keys.map { |key| @codecs.key_2_codec(key) }
     end
+
+    def fix_length? = @sequence_codecs.all?(&:fix_length?)
 
     def to_s
         "#{super} [#{@keys.join(' -> ')}]"
@@ -466,7 +474,7 @@ class CodecXor < CodecComposite
         end
         @prefix_codecs = @prefix_keys_config.map do |config|
             codec = codecs.key_2_codec(config[:key]) || raise("Codec #{config[:key]} not found for adding prefix key")
-            raise("Prefix codec #{config[:key]} must be CodecFixLength") unless codec.is_a?(CodecFixLength)
+            raise("Prefix codec #{config[:key]} must be fix-length") unless codec.fix_length?
             { codec: codec, except: config[:except] }
         end
     end
