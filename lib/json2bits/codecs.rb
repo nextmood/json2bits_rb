@@ -200,6 +200,8 @@ end
 
 # Encodes a symbol from a predefined list as its index
 class CodecSymbol < CodecInteger
+    attr_reader :symbols
+    
     def initialize(key:, symbols:, nb_bit: nil, statics: {}, comment: nil)
         @symbols = symbols
         super(key: key, max_integer: symbols.size - 1, nb_bit: nb_bit, statics: statics, comment: comment)
