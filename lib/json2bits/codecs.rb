@@ -420,7 +420,14 @@ class CodecArray < CodecComposite
 
     def serialize(bit_stream, value, is_last: true)
         nb_item = value.size
-        bit_stream.write_bits(nb_item, @counter_nb_bits)
+        if integer_encoding_little_endian? && @counter_nb_bits > 8
+            nb_full_bytes = @counter_nb_bits / 8
+            remaining_bits = @counter_nb_bits % 8
+            nb_full_bytes.times { |i| bit_stream.write_bits((nb_item >> (8 * i)) & 0xFF, 8) }
+            bit_stream.write_bits((nb_item >> (8 * nb_full_bytes)) & ((1 << remaining_bits) - 1), remaining_bits) if remaining_bits > 0
+        else
+            bit_stream.write_bits(nb_item, @counter_nb_bits)
+        end
         last_item = value.last
         value.each do |item|
             @item_codec.serialize(bit_stream, item, is_last: item == last_item && is_last)
@@ -429,7 +436,14 @@ class CodecArray < CodecComposite
     end
 
     def deserialize(bit_stream)
-        nb_item = bit_stream.read_bits(@counter_nb_bits)
+        if integer_encoding_little_endian? && @counter_nb_bits > 8
+            nb_full_bytes = @counter_nb_bits / 8
+            remaining_bits = @counter_nb_bits % 8
+            nb_item = nb_full_bytes.times.reduce(0) { |acc, i| acc | (bit_stream.read_bits(8) << (8 * i)) }
+            nb_item |= bit_stream.read_bits(remaining_bits) << (8 * nb_full_bytes) if remaining_bits > 0
+        else
+            nb_item = bit_stream.read_bits(@counter_nb_bits)
+        end
         nb_item.times.map { @item_codec.deserialize(bit_stream) }
     end
     

@@ -302,6 +302,25 @@ class CodecsTest < Minitest::Test
     assert_equal [0xAB], codec.serialize_to_bytes(0xAB)
   end
 
+  def test_array_little_endian_counter_byte_order
+    # 16-bit counter with endian=little: 64 items must serialize as [0x40, 0x00], not [0x00, 0x40]
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codecs.add_codec(CodecInteger.new(key: :item, nb_bit: 8))
+    codec = codecs.add_codec(CodecArray.new(key: :items, item_key: :item, nb_bit: 16))
+    bytes = codec.serialize_to_bytes(Array.new(64, 0))
+    assert_equal 0x40, bytes[0], "LSB of count must come first (little-endian)"
+    assert_equal 0x00, bytes[1], "MSB of count must come second (little-endian)"
+  end
+
+  def test_array_little_endian_counter_round_trip_above_255
+    # count=300 serialized as LE [0x2C, 0x01]; reading as BE would yield 0x2C01=11265 → wrong
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codecs.add_codec(CodecInteger.new(key: :item, nb_bit: 8))
+    codec = codecs.add_codec(CodecArray.new(key: :items, item_key: :item, nb_bit: 16))
+    input = (0..299).map { |i| i % 256 }
+    assert_equal input, round_trip(codec, input)
+  end
+
   # --- descriptor ---
 
   def test_integer_descriptor
