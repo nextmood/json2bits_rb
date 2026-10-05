@@ -173,6 +173,13 @@ class ConfiguratorTest < Minitest::Test
     assert_equal({ "unit" => "celsius", "precision" => 2, "readonly" => true }, codec.statics)
   end
 
+  def test_it_should_parse_static_boolean_values
+    assert parsed = @parser.parse("STATIC(endian=big)\ncmd VOID STATIC(ack_required=true;readonly=false)\n")
+    codec = parsed.value.key_2_codec("cmd")
+
+    assert_equal({ "ack_required" => true, "readonly" => false }, codec.statics)
+  end
+
   def test_it_should_parse_static_string_value
     assert parsed = @parser.parse("STATIC(endian=big)\ntemperature FLOAT(4;0.0;100.0) STATIC(unit=\"degrees celsius\";label=\"temp sensor\")\n")
     codec = parsed.value.key_2_codec("temperature")

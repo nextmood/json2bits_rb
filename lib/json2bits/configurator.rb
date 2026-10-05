@@ -2241,10 +2241,11 @@ module Configurator
     if r1
       r1 = SyntaxNode.new(input, (index-1)...index) if r1 == true
       r0 = r1
+      r0.extend(Boolean0)
+      r0.extend(Boolean0)
     else
       if (match_len = has_terminal?("false", false, index))
         r2 = instantiate_node(SyntaxNode,input, index...(index + match_len))
-        r2.extend(Boolean0)
         @index += match_len
       else
         terminal_parse_failure('"false"')
@@ -2253,6 +2254,8 @@ module Configurator
       if r2
         r2 = SyntaxNode.new(input, (index-1)...index) if r2 == true
         r0 = r2
+        r0.extend(Boolean0)
+        r0.extend(Boolean0)
       else
         @index = i0
         r0 = nil

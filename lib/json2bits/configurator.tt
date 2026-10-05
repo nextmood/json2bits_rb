@@ -251,7 +251,8 @@ grammar Configurator
   end
     
   rule boolean
-    "true" / "false" {
+    # Parenthesised so the block applies to both alternatives (unparenthesised, Treetop attaches it to "false" only).
+    ("true" / "false") {
         def value
             text_value == "true"
         end
