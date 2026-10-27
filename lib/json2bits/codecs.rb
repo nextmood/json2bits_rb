@@ -151,6 +151,30 @@ class CodecInteger < CodecFixLength
     end
 end
 
+# Signed integer in two's complement on a fixed number of bits (1-64), like C++ int8_t / int16_t / int32_t.
+# The bit pattern is written as an unsigned CodecInteger, so it follows the same endianness.
+class CodecSignedInteger < CodecInteger
+    def initialize(key:, nb_bit:, statics: {}, comment: nil)
+        super(key: key, nb_bit: nb_bit, statics: statics, comment: comment)
+        @min_signed = -(2 ** (nb_bit - 1))
+        @max_signed = (2 ** (nb_bit - 1)) - 1
+    end
+
+    def descriptor
+        super.merge(min: @min_signed, max: @max_signed)
+    end
+
+    def serialize(bit_stream, value, is_last: true)
+        raise "Value #{value} is out of range (#{@min_signed}, #{@max_signed})" unless value.between?(@min_signed, @max_signed)
+        super(bit_stream, value & @max_integer, is_last: is_last) # -1 → 0xFF…
+    end
+
+    def deserialize(bit_stream)
+        raw = super(bit_stream)
+        raw > @max_signed ? raw - (1 << @nb_bit) : raw # sign extension
+    end
+end
+
 class CodexDateTime < CodecFixLength
     # Milliseconds between Unix epoch (1970-01-01) and Y2K epoch (2000-01-01 UTC)
     Y2K_EPOCH_MS = 946_684_800_000

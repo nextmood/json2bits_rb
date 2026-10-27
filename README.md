@@ -98,6 +98,7 @@ Each line of the configuration describes one codec:
 | --- | --- | --- |
 | `BOOLEAN` | `BOOLEAN` | Single bit boolean. |
 | `INTEGER` | `INTEGER(nb_bit)` | Unsigned integer on `nb_bit` bits (1–64). |
+| `SIGNED` | `SIGNED(nb_bit)` | Signed integer in two's complement on `nb_bit` bits (1–64), like C++ `int8_t`/`int16_t`/`int32_t`; range `-2^(nb_bit-1)`..`2^(nb_bit-1)-1`, same endianness as `INTEGER`. |
 | `INTEGER_LONG` | Ruby-only class that selects the smallest segment able to hold the value (see `CodecIntegerLong`). |
 | `FLOAT` | `FLOAT(nb_bit;min;max)` | Maps an integer range to the float interval `[min, max]`. |
 | `BYTES` | `BYTES(nb_bytes)` | Raw byte data of fixed length. |

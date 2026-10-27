@@ -55,7 +55,7 @@ grammar Configurator
   end
 
   rule codec
-    codec_boolean / codec_integer / codec_datetime / codec_float / codec_bytes / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
+    codec_boolean / codec_integer / codec_signed_integer / codec_datetime / codec_float / codec_bytes / codec_hexa / codec_symbol / codec_void / codec_sequence / codec_alias / codec_array / codec_xor / codec_list
   end
 
   rule codec_boolean 
@@ -70,6 +70,14 @@ grammar Configurator
     "INTEGER" "(" nb_bit:integer ")" {
         def value
           {codec_type: "CodecInteger", nb_bit: nb_bit.value} 
+        end
+    }
+  end
+
+  rule codec_signed_integer
+    "SIGNED" "(" nb_bit:integer ")" {
+        def value
+          {codec_type: "CodecSignedInteger", nb_bit: nb_bit.value}
         end
     }
   end

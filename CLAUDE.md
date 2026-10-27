@@ -22,7 +22,7 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 **BitStream** (`lib/json2bits/bit_stream.rb`) - Low-level bit manipulation for reading/writing bits across byte boundaries in MSB order.
 
 **Codec Hierarchy** (`lib/json2bits/codecs.rb`) - All serialization codecs inherit from base `Codec` class:
-- `CodecFixLength` - Fixed-size codecs: `CodecVoid`, `CodecInteger`, `CodecBoolean`, `CodecSymbol`, `CodecFloat`, `CodecBytes`, `CodecHexa`, `CodexDateTime`
+- `CodecFixLength` - Fixed-size codecs: `CodecVoid`, `CodecInteger`, `CodecSignedInteger`, `CodecBoolean`, `CodecSymbol`, `CodecFloat`, `CodecBytes`, `CodecHexa`, `CodexDateTime`
 - `CodecComposite` - Variable/composite codecs: `CodecAlias`, `CodecIntegerLong`, `CodecSequence`, `CodecArray`, `CodecXor`, `CodecList`
 
 **Codecs Manager** (`lib/json2bits/codecs.rb`) - Registry that holds all codec instances and resolves references between them.
@@ -46,13 +46,14 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 
 ## Configuration DSL Format
 
-First line (optional): `STATIC(endian=big|little)` — sets global integer byte order (default: `big`). Only applies to `CodecInteger` and subclasses with `nb_bit > 8`. `DATETIME` is always little-endian regardless.
+First line (optional): `STATIC(endian=big|little)` — sets global integer byte order (default: `big`). Only applies to `CodecInteger` and subclasses (incl. `SIGNED`) with `nb_bit > 8`. `DATETIME` is always little-endian regardless.
 
 Line format: `<key> <CODEC>(parameters) [STATIC(metadata)] [// comment]`
 
 Available codecs:
 - `BOOLEAN` - Single bit
 - `INTEGER(nb_bit)` - Unsigned integer (1-64 bits)
+- `SIGNED(nb_bit)` - Signed integer, two's complement like C++ (1-64 bits, e.g. `SIGNED(12)`); follows the global endianness
 - `FLOAT(nb_bit;min;max)` - Maps integer range to float interval
 - `BYTES(nb_bytes)` - Raw byte data of fixed length
 - `HEXA(nb_bytes)` - Hexadecimal string

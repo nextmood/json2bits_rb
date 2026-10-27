@@ -477,6 +477,47 @@ class CodecsTest < Minitest::Test
     assert_equal [0x34, 0x12], codec.serialize_to_bytes(0x1234)
   end
 
+  def test_signed_integer_round_trip_at_the_limits
+    [[8, "big"], [16, "big"], [16, "little"], [32, "big"], [32, "little"], [12, "big"], [12, "little"]].each do |nb_bit, endian|
+      codec = Codecs.new(globals: {"endian" => endian}).add_codec(CodecSignedInteger.new(key: :val, nb_bit: nb_bit))
+      min = -(2 ** (nb_bit - 1))
+      max = (2 ** (nb_bit - 1)) - 1
+      [min, min + 1, -1, 0, 1, max].each do |value|
+        assert_equal value, round_trip(codec, value), "SIGNED(#{nb_bit}) #{endian}: #{value}"
+      end
+      assert_raises(RuntimeError) { codec.serialize(BitStream.new, max + 1) }
+      assert_raises(RuntimeError) { codec.serialize(BitStream.new, min - 1) }
+    end
+  end
+
+  def test_signed_integer_bytes_are_twos_complement
+    big = Codecs.new(globals: {"endian" => "big"})
+    little = Codecs.new(globals: {"endian" => "little"})
+    assert_equal [0xFF], big.add_codec(CodecSignedInteger.new(key: :i8, nb_bit: 8)).serialize_to_bytes(-1)
+    assert_equal [0x80], big.add_codec(CodecSignedInteger.new(key: :i8b, nb_bit: 8)).serialize_to_bytes(-128)
+    assert_equal [0xFF, 0xFE], big.add_codec(CodecSignedInteger.new(key: :i16, nb_bit: 16)).serialize_to_bytes(-2)
+    assert_equal [0xFE, 0xFF], little.add_codec(CodecSignedInteger.new(key: :i16, nb_bit: 16)).serialize_to_bytes(-2)
+    assert_equal [0x00, 0x00, 0x00, 0x80], little.add_codec(CodecSignedInteger.new(key: :i32, nb_bit: 32)).serialize_to_bytes(-(2**31))
+    # SIGNED(12) -2 = 0xFFE: big endian 0xFF then the nibble 0xE
+    assert_equal [0xFF, 0xE0], big.add_codec(CodecSignedInteger.new(key: :i12, nb_bit: 12)).serialize_to_bytes(-2)
+  end
+
+  def test_signed_integer_descriptor
+    descriptor = @codecs.add_codec(CodecSignedInteger.new(key: :rssi, nb_bit: 8)).descriptor
+    assert_equal :integer, descriptor[:type]
+    assert_equal(-128, descriptor[:min])
+    assert_equal 127, descriptor[:max]
+  end
+
+  def test_signed_integer_parser_integration
+    parsed = ConfiguratorParser.new.parse("STATIC(endian=little)\nrssi SIGNED(8)\noffset SIGNED(12)\ndelta SIGNED(16)\n")
+    assert parsed, "config should parse"
+    codecs = parsed.value
+    assert_instance_of CodecSignedInteger, codecs.key_2_codec("rssi")
+    assert_equal [0xFE, 0xFF], codecs.serialize_to_bytes("delta", -2)
+    assert_equal(-2048, codecs.deserialize_from_bytes("offset", codecs.serialize_to_bytes("offset", -2048)))
+  end
+
   def test_extract_unit_from_format
     # "%dms" -> "ms"
     assert_equal "ms", Codec.extract_unit_from_format("%dms")
