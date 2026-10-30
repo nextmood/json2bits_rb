@@ -518,6 +518,46 @@ class CodecsTest < Minitest::Test
     assert_equal(-2048, codecs.deserialize_from_bytes("offset", codecs.serialize_to_bytes("offset", -2048)))
   end
 
+  def test_array_ascii_is_a_counter_then_one_byte_per_character
+    codec = @codecs.add_codec(CodecArrayAscii.new(key: :message, nb_bit: 8))
+    assert_equal [3, 0x4F, 0x4B, 0x21], codec.serialize_to_bytes("OK!")
+    assert_equal "OK!", round_trip(codec, "OK!")
+    assert_equal "", round_trip(codec, "")
+    assert_equal [0], codec.serialize_to_bytes("")
+  end
+
+  def test_array_ascii_refuses_non_ascii_and_too_long_strings
+    codec = @codecs.add_codec(CodecArrayAscii.new(key: :message, nb_bit: 2)) # 3 characters max
+    assert_raises(RuntimeError) { codec.serialize_to_bytes("été") }
+    assert_raises(RuntimeError) { codec.serialize_to_bytes("ABCD") }
+    assert_equal "ABC", round_trip(codec, "ABC")
+  end
+
+  def test_array_ascii_reads_a_byte_above_127_as_a_question_mark
+    codec = @codecs.add_codec(CodecArrayAscii.new(key: :message, nb_bit: 8))
+    assert_equal "A?B", codec.deserialize_from_bytes([3, 0x41, 0xE9, 0x42])
+  end
+
+  def test_array_ascii_counter_follows_the_endianness_like_array
+    codecs = Codecs.new(globals: {"endian" => "little"})
+    codec = codecs.add_codec(CodecArrayAscii.new(key: :message, nb_bit: 16))
+    assert_equal [2, 0, 0x48, 0x69], codec.serialize_to_bytes("Hi")
+    assert_equal "Hi", round_trip(codec, "Hi")
+  end
+
+  def test_array_ascii_descriptor_and_parser_integration
+    parsed = ConfiguratorParser.new.parse("STATIC(endian=little)\ncode INTEGER(8)\nmessage ARRAY_ASCII(8)\nreboot SEQUENCE(code;message)\nitems ARRAY(8;code)\n")
+    assert parsed, "config should parse"
+    codecs = parsed.value
+    assert_instance_of CodecArrayAscii, codecs.key_2_codec("message")
+    assert_instance_of CodecArray, codecs.key_2_codec("items") # ARRAY still parses after ARRAY_ASCII
+    assert_equal({type: :ascii, nb_char_max: 255}, codecs.descriptor("message").slice(:type, :nb_char_max))
+
+    bytes = codecs.serialize_to_bytes("reboot", {"code" => 7, "message" => "wdt"})
+    assert_equal [7, 3, 0x77, 0x64, 0x74], bytes
+    assert_equal({"code" => 7, "message" => "wdt"}, codecs.deserialize_from_bytes("reboot", bytes))
+  end
+
   def test_extract_unit_from_format
     # "%dms" -> "ms"
     assert_equal "ms", Codec.extract_unit_from_format("%dms")

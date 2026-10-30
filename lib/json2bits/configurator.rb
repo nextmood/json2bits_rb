@@ -444,23 +444,29 @@ module Configurator
                           r11 = SyntaxNode.new(input, (index-1)...index) if r11 == true
                           r0 = r11
                         else
-                          r12 = _nt_codec_array
+                          r12 = _nt_codec_array_ascii
                           if r12
                             r12 = SyntaxNode.new(input, (index-1)...index) if r12 == true
                             r0 = r12
                           else
-                            r13 = _nt_codec_xor
+                            r13 = _nt_codec_array
                             if r13
                               r13 = SyntaxNode.new(input, (index-1)...index) if r13 == true
                               r0 = r13
                             else
-                              r14 = _nt_codec_list
+                              r14 = _nt_codec_xor
                               if r14
                                 r14 = SyntaxNode.new(input, (index-1)...index) if r14 == true
                                 r0 = r14
                               else
-                                @index = i0
-                                r0 = nil
+                                r15 = _nt_codec_list
+                                if r15
+                                  r15 = SyntaxNode.new(input, (index-1)...index) if r15 == true
+                                  r0 = r15
+                                else
+                                  @index = i0
+                                  r0 = nil
+                                end
                               end
                             end
                           end
@@ -1186,6 +1192,77 @@ module Configurator
     end
 
     node_cache[:codec_alias][start_index] = r0
+
+    r0
+  end
+
+  module CodecArrayAscii0
+    def nb_bit
+      elements[2]
+    end
+
+  end
+
+  module CodecArrayAscii1
+    def value
+      {codec_type: "CodecArrayAscii", nb_bit: nb_bit.value}
+    end
+  end
+
+  def _nt_codec_array_ascii
+    start_index = index
+    if node_cache[:codec_array_ascii].has_key?(index)
+      cached = node_cache[:codec_array_ascii][index]
+      if cached
+        node_cache[:codec_array_ascii][index] = cached = SyntaxNode.new(input, index...(index + 1)) if cached == true
+        @index = cached.interval.end
+      end
+      return cached
+    end
+
+    i0, s0 = index, []
+    if (match_len = has_terminal?("ARRAY_ASCII", false, index))
+      r1 = instantiate_node(SyntaxNode,input, index...(index + match_len))
+      @index += match_len
+    else
+      terminal_parse_failure('"ARRAY_ASCII"')
+      r1 = nil
+    end
+    s0 << r1
+    if r1
+      if (match_len = has_terminal?("(", false, index))
+        r2 = true
+        @index += match_len
+      else
+        terminal_parse_failure('"("')
+        r2 = nil
+      end
+      s0 << r2
+      if r2
+        r3 = _nt_integer
+        s0 << r3
+        if r3
+          if (match_len = has_terminal?(")", false, index))
+            r4 = true
+            @index += match_len
+          else
+            terminal_parse_failure('")"')
+            r4 = nil
+          end
+          s0 << r4
+        end
+      end
+    end
+    if s0.last
+      r0 = instantiate_node(SyntaxNode,input, i0...index, s0)
+      r0.extend(CodecArrayAscii0)
+      r0.extend(CodecArrayAscii1)
+    else
+      @index = i0
+      r0 = nil
+    end
+
+    node_cache[:codec_array_ascii][start_index] = r0
 
     r0
   end

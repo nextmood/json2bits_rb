@@ -109,6 +109,7 @@ Each line of the configuration describes one codec:
 | `SEQUENCE` | `SEQUENCE(key1;key2;...)` | Concatenates several codecs in order. |
 | `ALIAS` | `ALIAS(target_key)` | Reuses another codec under a different name. |
 | `ARRAY` | `ARRAY(nb_bit;item_key)` | Writes the array length on `nb_bit` bits, then encodes each item with `item_key`. |
+| `ARRAY_ASCII` | `ARRAY_ASCII(nb_bit)` | An ASCII string: its length on `nb_bit` bits (like `ARRAY`), then one byte per character. Non-ASCII strings are refused; a byte above 127 reads as `?`. |
 | `XOR` | `XOR(nb_bit_binary_key;[0xNN:key1;0xNN:key2;...][;prefix1[except:0xNN;...];...])` | One-of choice between the given codecs, selected on `nb_bit_binary_key` bits. Optional prefix fields are serialized after the binary key and before the payload; each prefix can carry an `[except:0xNN;...]` clause to suppress it for specific binary keys. |
 | `LIST` | `LIST(xor_key)` | Heterogeneous list using a named `XOR` codec. Appends a `0x00` terminator when not the last element in a sequence. |
 
@@ -281,6 +282,7 @@ The `type` values map to codec kinds as follows:
 | `:sequence` | `SEQUENCE` — includes `items:` array |
 | `:alias` | `ALIAS` — includes `item:` with the target's descriptor |
 | `:array` | `ARRAY` — includes `item:` and `nb_item_max:` |
+| `:ascii` | `ARRAY_ASCII` — includes `nb_char_max:` |
 | `:xor` | `XOR` — includes `keys_to_descriptor:` hash keyed by codec key (each entry carries `bkey:`), and `prefix_descriptors:` array (each entry carries `except:` with the binary keys for which that prefix is skipped) |
 | `:xor_list_item` | `LIST` — includes `item_descriptor:` with the XOR codec's descriptor |
 

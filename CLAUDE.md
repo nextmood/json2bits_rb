@@ -23,7 +23,7 @@ tt lib/json2bits/configurator.tt -f              # Regenerate parser after gramm
 
 **Codec Hierarchy** (`lib/json2bits/codecs.rb`) - All serialization codecs inherit from base `Codec` class:
 - `CodecFixLength` - Fixed-size codecs: `CodecVoid`, `CodecInteger`, `CodecSignedInteger`, `CodecBoolean`, `CodecSymbol`, `CodecFloat`, `CodecBytes`, `CodecHexa`, `CodexDateTime`
-- `CodecComposite` - Variable/composite codecs: `CodecAlias`, `CodecIntegerLong`, `CodecSequence`, `CodecArray`, `CodecXor`, `CodecList`
+- `CodecComposite` - Variable/composite codecs: `CodecAlias`, `CodecIntegerLong`, `CodecSequence`, `CodecArray`, `CodecArrayAscii`, `CodecXor`, `CodecList`
 
 **Codecs Manager** (`lib/json2bits/codecs.rb`) - Registry that holds all codec instances and resolves references between them.
 
@@ -63,6 +63,7 @@ Available codecs:
 - `SEQUENCE(k1;k2;...)` - Concatenate codecs
 - `ALIAS(target_key)` - Reference another codec
 - `ARRAY(nb_bit;item_key)` - Homogeneous list with length prefix
+- `ARRAY_ASCII(nb_bit)` - ASCII string: length prefix on `nb_bit` bits (like `ARRAY`), then one byte per character
 - `XOR(nb_bit;[0xNN:k1;...][;prefix_key[except:0xNN;...];...])` - One-of choice between codecs, with optional shared prefix fields serialized before the payload; each prefix key may carry an `[except:...]` list of binary keys for which that prefix is omitted
 - `LIST(xor_key)` - Heterogeneous list using a XOR codec (0x00 terminator when not last)
 

@@ -480,6 +480,39 @@ class CodecArray < CodecComposite
     end
 end
 
+# ASCII string: a character counter on nb_bit bits (encoded like ARRAY's), then one byte per character.
+# Serializes a String of ASCII characters; deserializes to a String (a byte above 127 becomes "?").
+class CodecArrayAscii < CodecArray
+    def initialize(key:, nb_bit:, statics: {}, comment: nil)
+        super(key: key, item_key: nil, nb_bit: nb_bit, statics: statics, comment: comment)
+    end
+
+    def post_initialize(codecs)
+        @codecs = codecs
+        @item_codec = CodecInteger.new(key: "#{key}_byte", nb_bit: 8)
+        @item_codec.post_initialize(codecs)
+    end
+
+    def serialize(bit_stream, value, is_last: true)
+        value = value.to_s
+        raise "Value #{value.inspect} is not ASCII" unless value.ascii_only?
+        raise "Value #{value.inspect} exceeds #{@nb_item_max} characters" if value.bytesize > @nb_item_max
+        super(bit_stream, value.bytes, is_last: is_last)
+    end
+
+    def deserialize(bit_stream)
+        super(bit_stream).map { |byte| byte < 128 ? byte.chr : "?" }.join
+    end
+
+    def to_s
+        "#{self.class} #{@key} #{@nb_item_max} max characters"
+    end
+
+    def descriptor
+        super.except(:item, :nb_item_max).merge(type: :ascii, nb_char_max: @nb_item_max)
+    end
+end
+
 # One-of choice between codecs, selected by a binary key prefix
 class CodecXor < CodecComposite
     attr_reader :bkey_2_codec, :key_2_bkey
